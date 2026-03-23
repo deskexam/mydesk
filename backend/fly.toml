@@ -8,6 +8,12 @@ primary_region = "delhi"
   PORT = "8000"
   PYTHONPATH = "/app"
   CHROMA_PERSIST_DIR = "/app/chroma_data"
+  MONGODB_URL = "${MONGODB_URL}"
+  SECRET_KEY = "${SECRET_KEY}"
+  GROQ_API_KEY = "${GROQ_API_KEY}"
+  GEMINI_API_KEY = "${GEMINI_API_KEY}"
+  RAZORPAY_KEY_ID = "${RAZORPAY_KEY_ID}"
+  RAZORPAY_KEY_SECRET = "${RAZORPAY_KEY_SECRET}"
 
 [processes]
   web = "uvicorn main:app --host 0.0.0.0 --port $PORT"
