@@ -529,7 +529,7 @@ export default function EditorPage() {
         instituteName: prev.metadata.instituteName || profile.institute_name || '',
       },
     }));
-  }, [profile?.full_name]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile?.full_name, profile?.institute_name]);
 
   // Apply template preset
   useEffect(() => {
