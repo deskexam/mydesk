@@ -516,6 +516,7 @@ export default function EditorPage() {
         }
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paperId]);
 
   // Once profile loads, backfill teacher/institute name if still empty
