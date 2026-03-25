@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Download, Shield, Star, FileText, Camera, Layers, LogOut } from 'lucide-react';
+import { Zap, Download, Shield, Star, FileText, Layers, Sparkles, LogOut } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export default function LandingPage() {
@@ -10,18 +10,18 @@ export default function LandingPage() {
   const handleLogout = () => { signOut(); };
 
   const features = [
+    { icon: <Sparkles className="w-6 h-6" />, title: 'AI Question Generation', desc: 'Describe your topic, board, and difficulty — AI generates a full question paper in seconds. CBSE, JEE, NEET, and more.', primary: true },
+    { icon: <Layers className="w-6 h-6" />, title: '11 Professional Templates', desc: 'Pick any template — Classic, Modern, Two-Column, JEE, NEET, Olympiad. One click and the paper is styled instantly.', primary: true },
+    { icon: <Download className="w-6 h-6" />, title: 'Instant PDF Download', desc: 'Pixel-perfect PDF in seconds. Looks exactly like a printed exam paper. Download unlimited papers.', primary: true },
     { icon: <FileText className="w-6 h-6" />, title: 'LaTeX Question Editor', desc: 'Write complex formulas with live preview. Physics, Chemistry, Calculus — all beautifully rendered.' },
-    { icon: <Layers className="w-6 h-6" />, title: '11 Professional Templates', desc: 'CBSE, JEE, NEET, Olympiad and more. One-click template switch with instant preview.' },
-    { icon: <Camera className="w-6 h-6" />, title: 'Photo → LaTeX', desc: 'Snap a handwritten question. AI converts it to editable LaTeX text instantly.' },
-    { icon: <Download className="w-6 h-6" />, title: 'PDF Import & Edit', desc: 'Import any PDF question paper, convert to our editor format — PDF to PPT, PDF to LaTeX.' },
-    { icon: <Zap className="w-6 h-6" />, title: 'Instant PDF Export', desc: 'Pixel-perfect PDF generation in seconds. Looks exactly like a printed exam paper.' },
+    { icon: <Zap className="w-6 h-6" />, title: 'PDF Import & Edit', desc: 'Import any PDF question paper into the editor. Convert to PPT or LaTeX.' },
     { icon: <Shield className="w-6 h-6" />, title: 'Cloud Library', desc: 'All your papers saved securely. Re-edit, re-download anytime from any device.' },
   ];
 
   const testimonials = [
-    { name: 'Rajesh Kumar', role: 'Physics Teacher, Delhi', text: 'Deskexam has transformed how I create test papers. LaTeX rendering is flawless!', stars: 5 },
-    { name: 'Priya Sharma', role: 'Coaching Director, Kota', text: 'Our institute saves 3 hours per paper. The JEE mock template is perfect.', stars: 5 },
-    { name: 'Anand Verma', role: 'Math Tutor, Pune', text: 'Photo to LaTeX feature is magical. I just click a photo and edit — done!', stars: 5 },
+    { name: 'Rajesh Kumar', role: 'Physics Teacher, Delhi', text: 'I generated a full JEE mock paper in under 2 minutes. The AI questions are surprisingly good and the PDF looks professional.', stars: 5 },
+    { name: 'Priya Sharma', role: 'Coaching Director, Kota', text: 'Our institute saves 3 hours per paper. We just pick a template and download — done. The AI generation is a game changer.', stars: 5 },
+    { name: 'Anand Verma', role: 'Math Tutor, Pune', text: 'Best investment for my coaching. AI generates 30 questions in seconds and the LaTeX rendering is flawless.', stars: 5 },
   ];
 
   return (
@@ -35,7 +35,7 @@ export default function LandingPage() {
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
             <a href="#features" className="hover:text-primary-900">Features</a>
-            <a href="#templates" className="hover:text-primary-900">Templates</a>
+            <a href="#how-it-works" className="hover:text-primary-900">How it Works</a>
             <a href="#pricing" className="hover:text-primary-900">Pricing</a>
             <a href="#contact" className="hover:text-primary-900">Contact</a>
           </div>
@@ -78,34 +78,63 @@ export default function LandingPage() {
             <Star className="w-4 h-4 fill-current" /> Trusted by 10,000+ teachers across India
           </div>
           <h1 className="font-serif text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
-            Create Professional<br />
-            <span className="text-gold">Question Papers</span> in Minutes
+            Generate Question Papers<br />
+            <span className="text-gold">with AI — Download Instantly</span>
           </h1>
           <p className="text-blue-200 text-xl mb-10 max-w-2xl mx-auto">
-            LaTeX-powered paper creator for Physics, Chemistry & Math teachers. 
-            CBSE, JEE, NEET formats. Photo-to-LaTeX AI. PDF import and edit.
+            Pick a topic, choose a template, let AI build your question paper.
+            Download a print-ready PDF in under 2 minutes. CBSE, JEE, NEET formats.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button onClick={() => navigate('/auth')} className="btn-gold text-lg px-8 py-3">
-              Start Free — 3 Papers on Us 🎓
+              Generate Your First Paper Free 🎓
             </button>
-            <button className="border border-white/30 text-white rounded-8px px-8 py-3 font-semibold hover:bg-white/10 transition-all rounded-lg">
-              Watch Demo →
+            <button onClick={() => navigate('/auth')} className="border border-white/30 text-white rounded-lg px-8 py-3 font-semibold hover:bg-white/10 transition-all">
+              See Templates →
             </button>
           </div>
-          <p className="text-blue-300 text-sm mt-4">No credit card required • 3 free PDF downloads</p>
+          <p className="text-blue-300 text-sm mt-4">No credit card required • 3 free paper downloads</p>
         </div>
       </section>
 
       {/* Stats */}
       <section className="py-12 bg-primary-900 border-y border-blue-800">
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {[['10,000+','Teachers'], ['50,000+','Papers Created'], ['11','Templates'], ['₹200/mo','Unlimited Plan']].map(([num, label]) => (
+          {[['10,000+','Teachers'], ['50,000+','Papers Generated'], ['11','Templates'], ['₹300/mo','Unlimited Plan']].map(([num, label]) => (
             <div key={label}>
               <div className="font-serif text-3xl font-bold text-gold">{num}</div>
               <div className="text-blue-300 text-sm mt-1">{label}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* How it Works */}
+      <section id="how-it-works" className="py-20 px-6 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="font-serif text-4xl font-bold text-primary-900 mb-4">Ready in 3 Simple Steps</h2>
+            <p className="text-gray-600 text-lg">From idea to printed paper in under 2 minutes</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { step: '1', icon: '🧠', title: 'Describe Your Paper', desc: 'Enter subject, topic, board (CBSE/JEE/NEET), difficulty, and number of questions.' },
+              { step: '2', icon: '✨', title: 'AI Generates Questions', desc: 'Our AI creates MCQs, short answers, and long answers — with accurate answers and marking.' },
+              { step: '3', icon: '📄', title: 'Pick Template & Download', desc: 'Choose from 11 professional templates. Download a pixel-perfect PDF instantly.' },
+            ].map((s) => (
+              <div key={s.step} className="text-center">
+                <div className="w-16 h-16 bg-primary-900 text-white rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4">{s.icon}</div>
+                <div className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Step {s.step}</div>
+                <h3 className="font-bold text-primary-900 text-xl mb-2">{s.title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-12">
+            <button onClick={() => navigate('/auth')} className="btn-primary text-lg px-10 py-3">
+              Try It Now — Free
+            </button>
+          </div>
         </div>
       </section>
 
@@ -118,41 +147,12 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {features.map((f, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 hover:border-blue-200 hover:shadow-lg transition-all feature-card">
-                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-primary-900 mb-4">{f.icon}</div>
-                <h3 className="font-semibold text-primary-900 text-lg mb-2">{f.title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{f.desc}</p>
+              <div key={i} className={`rounded-2xl p-6 border hover:shadow-lg transition-all feature-card ${f.primary ? 'bg-primary-900 border-primary-800' : 'bg-white border-gray-100 hover:border-blue-200'}`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${f.primary ? 'bg-white/10 text-gold' : 'bg-blue-50 text-primary-900'}`}>{f.icon}</div>
+                <h3 className={`font-semibold text-lg mb-2 ${f.primary ? 'text-white' : 'text-primary-900'}`}>{f.title}</h3>
+                <p className={`text-sm leading-relaxed ${f.primary ? 'text-blue-200' : 'text-gray-500'}`}>{f.desc}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* PDF Tools Highlight */}
-      <section className="py-20 px-6 bg-primary-900">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="font-serif text-4xl font-bold text-white mb-4">🔄 PDF Power Tools</h2>
-            <p className="text-blue-200">Import, transform, and edit existing papers</p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { title: 'PDF → PPT', desc: 'Convert question papers to editable slides', icon: '📊' },
-              { title: 'PDF → Editor', desc: 'Import any PDF into our question editor', icon: '✏️' },
-              { title: 'PDF → LaTeX', desc: 'Extract mathematical content as LaTeX code', icon: '∑' },
-              { title: 'Photo → LaTeX', desc: 'Snap handwritten questions, get LaTeX', icon: '📷' },
-            ].map((t, i) => (
-              <div key={i} className="bg-white/10 rounded-2xl p-6 border border-white/20 hover:bg-white/15 transition-all template-card">
-                <div className="text-4xl mb-3">{t.icon}</div>
-                <h3 className="font-bold text-white text-lg mb-2">{t.title}</h3>
-                <p className="text-blue-200 text-sm">{t.desc}</p>
-              </div>
-            ))}
-          </div>
-          <div className="text-center mt-8">
-            <button onClick={() => navigate('/auth')} className="btn-gold px-8 py-3">
-              Try PDF Tools Free
-            </button>
           </div>
         </div>
       </section>
@@ -169,9 +169,9 @@ export default function LandingPage() {
             <div className="border-2 border-gray-200 rounded-2xl p-8">
               <h3 className="font-bold text-xl text-gray-800 mb-2">Free Starter</h3>
               <div className="text-4xl font-serif font-bold text-primary-900 mb-1">₹0</div>
-              <p className="text-gray-500 text-sm mb-6">3 free PDF downloads</p>
+              <p className="text-gray-500 text-sm mb-6">3 free paper downloads</p>
               <ul className="space-y-2 text-sm text-gray-600 mb-8">
-                {['3 paper downloads', 'All question types', 'LaTeX rendering', 'Basic templates'].map(i => (
+                {['3 AI-generated papers', 'All question types', 'LaTeX rendering', 'Basic templates'].map(i => (
                   <li key={i} className="flex items-center gap-2"><span className="text-green-500">✓</span>{i}</li>
                 ))}
               </ul>
@@ -183,10 +183,10 @@ export default function LandingPage() {
             <div className="border-2 border-primary-900 rounded-2xl p-8 relative">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary-900 text-white text-xs font-bold px-4 py-1 rounded-full">POPULAR</div>
               <h3 className="font-bold text-xl text-gray-800 mb-2">Monthly Pro</h3>
-              <div className="text-4xl font-serif font-bold text-primary-900 mb-1">₹200</div>
+              <div className="text-4xl font-serif font-bold text-primary-900 mb-1">₹300</div>
               <p className="text-gray-500 text-sm mb-6">per month, unlimited</p>
               <ul className="space-y-2 text-sm text-gray-600 mb-8">
-                {['Unlimited downloads', 'All 11 templates', 'PDF import tools', 'Photo → LaTeX AI', 'Cloud library', 'Priority support'].map(i => (
+                {['Unlimited AI generation', 'All 11 templates', 'Unlimited PDF downloads', 'PDF import tools', 'Cloud library', 'Priority support'].map(i => (
                   <li key={i} className="flex items-center gap-2"><span className="text-green-500">✓</span>{i}</li>
                 ))}
               </ul>
@@ -198,8 +198,8 @@ export default function LandingPage() {
             <div className="border-2 border-gold rounded-2xl p-8 bg-amber-50 relative">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gold text-primary-900 text-xs font-bold px-4 py-1 rounded-full">BEST VALUE</div>
               <h3 className="font-bold text-xl text-gray-800 mb-2">Yearly Pro</h3>
-              <div className="text-4xl font-serif font-bold text-primary-900 mb-1">₹2000</div>
-              <p className="text-gray-500 text-sm mb-6">per year — save ₹400!</p>
+              <div className="text-4xl font-serif font-bold text-primary-900 mb-1">₹3000</div>
+              <p className="text-gray-500 text-sm mb-6">per year — save ₹600!</p>
               <ul className="space-y-2 text-sm text-gray-600 mb-8">
                 {['Everything in Monthly', '2 months free', 'Early access features', 'Institute branding', 'Bulk paper tools', 'Dedicated support'].map(i => (
                   <li key={i} className="flex items-center gap-2"><span className="text-green-500">✓</span>{i}</li>
@@ -235,10 +235,10 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="py-20 px-6 bg-primary-900">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="font-serif text-4xl font-bold text-white mb-4">Ready to Save Hours Every Week?</h2>
-          <p className="text-blue-200 text-lg mb-8">Join thousands of teachers creating beautiful question papers</p>
+          <h2 className="font-serif text-4xl font-bold text-white mb-4">Generate Your First Paper in 2 Minutes</h2>
+          <p className="text-blue-200 text-lg mb-8">AI question generation · 11 templates · Instant PDF download</p>
           <button onClick={() => navigate('/auth')} className="btn-gold text-lg px-10 py-4">
-            Create Your First Paper Free 🚀
+            Start Free — No Credit Card 🚀
           </button>
         </div>
       </section>
