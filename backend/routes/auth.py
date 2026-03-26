@@ -172,8 +172,66 @@ async def reset_password(token: str, payload: ResetPasswordRequest):
 
 
 @router.post("/google")
-async def google_auth():
-    raise HTTPException(status_code=501, detail="Google OAuth not implemented yet")
+async def google_auth(payload: GoogleAuthRequest):
+    import httpx
+    # Verify token with Google
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {payload.token}"}
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    info = resp.json()
+    email = info.get("email")
+    google_id = info.get("sub")
+    full_name = info.get("name", "")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Could not get email from Google")
+
+    db = get_db()
+    user = await db.users.find_one({"email": email})
+    now = _now()
+
+    if user:
+        # Update google_id if not set
+        if not user.get("google_id"):
+            await db.users.update_one(
+                {"_id": user["_id"]},
+                {"$set": {"google_id": google_id, "email_verified": True, "updated_at": now}}
+            )
+            user["google_id"] = google_id
+            user["email_verified"] = True
+    else:
+        # Register new user
+        user_doc = {
+            "full_name": full_name,
+            "name": full_name,
+            "email": email,
+            "password": None,
+            "google_id": google_id,
+            "role": "user",
+            "email_verified": True,
+            "email_verification_token": None,
+            "credits": 3,
+            "subscription_status": "free",
+            "subscription_end": None,
+            "total_papers_created": 0,
+            "created_at": now,
+            "updated_at": now,
+        }
+        result = await db.users.insert_one(user_doc)
+        user_doc["_id"] = result.inserted_id
+        user = user_doc
+
+    token = create_access_token({"sub": str(user["_id"]), "role": user.get("role", "user")})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": format_user(user),
+    }
 
 
 @router.post("/resend-verification")
