@@ -174,11 +174,10 @@ async def reset_password(token: str, payload: ResetPasswordRequest):
 @router.post("/google")
 async def google_auth(payload: GoogleAuthRequest):
     import httpx
-    # Verify token with Google
+    # Verify ID token with Google tokeninfo endpoint
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            "https://www.googleapis.com/oauth2/v3/userinfo",
-            headers={"Authorization": f"Bearer {payload.token}"}
+            f"https://oauth2.googleapis.com/tokeninfo?id_token={payload.token}"
         )
     if resp.status_code != 200:
         raise HTTPException(status_code=401, detail="Invalid Google token")
