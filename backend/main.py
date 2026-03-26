@@ -65,7 +65,7 @@ async def list_models():
 async def ping_db():
     """Tests MongoDB connection and returns all papers."""
     db = get_db()
-    if db is None:
+    if db is None:  
         return {"status": "error", "detail": "DB not connected"}
     count = await db.papers.count_documents({})
     papers_list = []
