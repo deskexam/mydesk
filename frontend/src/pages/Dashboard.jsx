@@ -246,7 +246,7 @@ export default function Dashboard() {
                   route: '/editor',
                 },
                 // Only show the "Unlimited with Pro" card if user is not subscribed
-                !isSubscribed && {
+                !isPaid && {
                   icon: <TrendingUp className="w-5 h-5" />,
                   color: 'bg-green-50 text-green-600',
                   title: 'Unlimited with Pro',
