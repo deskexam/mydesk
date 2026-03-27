@@ -9,8 +9,19 @@ export default function Navbar() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const isSubscribed = ['monthly', 'yearly'].includes(profile?.subscription_status) &&
-    new Date(profile?.subscription_end) > new Date();
+  const plan = profile?.plan || 'free';
+  const showUpgradeBanner = profile?.show_upgrade_banner || plan === 'free';
+  const isPaid = plan !== 'free' && !showUpgradeBanner;
+  const trialActive = profile?.trial_active;
+
+  const planLabel = () => {
+    if (plan === 'free') return null;
+    if (trialActive) return 'Trial';
+    if (plan === 'basic') return 'Basic';
+    if (plan === 'pro') return 'Pro';
+    if (plan === 'yearly') return 'Yearly Pro';
+    return null;
+  };
 
   const navLinks = [
     { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -51,25 +62,23 @@ export default function Navbar() {
 
       {/* Right side */}
       <div className="ml-auto flex items-center gap-3">
-        {/* Credit/Status badge */}
-        {isSubscribed ? (
+        {/* Plan status badge */}
+        {isPaid ? (
           <div className="hidden sm:flex items-center gap-1.5 bg-green-500/20 border border-green-400/30 rounded-full px-3 py-1 text-xs font-semibold text-green-300">
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>
-            {profile?.subscription_status === 'yearly' ? 'Yearly Pro' : 'Monthly Pro'}
+            {planLabel()} Active
           </div>
-        ) : (
-          <button
-            onClick={() => navigate('/payment')}
-            className="hidden sm:flex items-center gap-1.5 bg-gold/20 border border-gold/40 rounded-full px-3 py-1 text-xs font-bold text-gold hover:bg-gold/30 transition-all"
-          >
-            ⚡ {profile?.credits ?? 0} credits
-          </button>
-        )}
+        ) : trialActive ? (
+          <div className="hidden sm:flex items-center gap-1.5 bg-blue-500/20 border border-blue-400/30 rounded-full px-3 py-1 text-xs font-semibold text-blue-300">
+            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>
+            Trial · {profile?.days_until_expiry ?? 0}d left
+          </div>
+        ) : null}
 
-        {/* Upgrade if not subscribed */}
-        {!isSubscribed && (
+        {/* Upgrade button — only when banner should show */}
+        {showUpgradeBanner && (
           <button onClick={() => navigate('/payment')} className="hidden sm:block btn-gold text-xs py-2 px-4">
-            Upgrade ₹200
+            {trialActive ? 'Upgrade' : plan !== 'free' ? 'Renew' : 'Upgrade'}
           </button>
         )}
 
@@ -102,12 +111,14 @@ export default function Navbar() {
               {link.icon} {link.label}
             </button>
           ))}
-          <button
-            onClick={() => { navigate('/payment'); setMobileOpen(false); }}
-            className="flex items-center gap-3 w-full px-6 py-4 text-gold hover:bg-white/10 transition-all border-t border-blue-800"
-          >
-            <CreditCard className="w-4 h-4" /> Upgrade Plan
-          </button>
+          {showUpgradeBanner && (
+            <button
+              onClick={() => { navigate('/payment'); setMobileOpen(false); }}
+              className="flex items-center gap-3 w-full px-6 py-4 text-gold hover:bg-white/10 transition-all border-t border-blue-800"
+            >
+              <CreditCard className="w-4 h-4" /> {trialActive ? 'Upgrade Plan' : plan !== 'free' ? 'Renew Plan' : 'Upgrade Plan'}
+            </button>
+          )}
           <button onClick={handleLogout} className="flex items-center gap-3 w-full px-6 py-4 text-blue-300 hover:bg-white/10 transition-all">
             <LogOut className="w-4 h-4" /> Sign Out
           </button>
