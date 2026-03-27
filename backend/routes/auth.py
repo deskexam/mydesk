@@ -65,10 +65,12 @@ async def register(payload: UserCreate):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    from core.config import settings as _settings
     admin_email = os.getenv("FIRST_ADMIN_EMAIL", "").strip().lower()
     user_count = await db.users.count_documents({})
     role = "admin" if (user_count == 0 and (not admin_email or payload.email.lower() == admin_email)) else "user"
     now = _now()
+    trial_end = now + timedelta(days=_settings.TRIAL_DAYS)
 
     user_doc = {
         "full_name": payload.full_name,
@@ -79,9 +81,20 @@ async def register(payload: UserCreate):
         "email_verified": False,
         "email_verification_token": secrets.token_urlsafe(32),
         "google_id": None,
+        # Plan fields
+        "plan": "basic",
+        "trial_active": True,
+        "trial_end": trial_end,
+        "subscription_start": now,
+        "subscription_end": trial_end,
+        "papers_used": 0,
+        "downloads_used": 0,
+        "last_reset_date": now,
+        "custom_logo_url": None,
+        "institute_name": "",
+        # Legacy
         "credits": 3,
-        "subscription_status": "free",
-        "subscription_end": None,
+        "subscription_status": "basic",
         "total_papers_created": 0,
         "created_at": now,
         "updated_at": now,

@@ -41,6 +41,17 @@ class Settings(BaseSettings):
     # File Upload Configuration
     upload_dir: str = os.getenv("UPLOAD_DIR", "uploads")
     max_file_size: int = 10 * 1024 * 1024  # 10MB
+    max_logo_size: int = 2 * 1024 * 1024   # 2MB
+
+    # Plan limits: (papers_per_period, downloads_per_period, max_grade, trial_days)
+    # free: lifetime totals | basic/pro/yearly: per anniversary period
+    PLAN_LIMITS: dict = {
+        "free":   {"papers": 5,    "downloads": 3,   "max_grade": 10, "label": "Free"},
+        "basic":  {"papers": 50,   "downloads": 25,  "max_grade": 12, "label": "Basic"},
+        "pro":    {"papers": 100,  "downloads": 50,  "max_grade": 12, "label": "Pro"},
+        "yearly": {"papers": 1000, "downloads": 500, "max_grade": 12, "label": "Yearly"},
+    }
+    TRIAL_DAYS: int = 15
     
     # Available Models (comma-separated string)
     available_models_str: str = "llama-3.3-70b-versatile,llama-3.1-8b-instant,mixtral-8x7b-32768,gemma2-9b-it"

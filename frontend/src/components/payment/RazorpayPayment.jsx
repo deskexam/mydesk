@@ -9,11 +9,12 @@ const RazorpayPayment = ({ selectedPlan, onSuccess, onCancel }) => {
   const [error, setError] = useState('');
 
   const plans = {
-    monthly: { label: 'Monthly Pro', amount: 200, duration: '30 days', savings: null },
-    yearly: { label: 'Yearly Pro', amount: 2000, duration: '365 days', savings: 'Save ₹400 vs monthly!' },
+    basic:  { label: 'Basic Professional', amount: 299,  duration: '30 days',  savings: null },
+    pro:    { label: 'Pro Institute',       amount: 599,  duration: '30 days',  savings: null },
+    yearly: { label: 'Yearly Pro',          amount: 6000, duration: '365 days', savings: 'Save ₹1188 vs monthly Pro!' },
   };
 
-  const plan = plans[selectedPlan];
+  const plan = plans[selectedPlan] || plans.basic;
 
   const handleRazorpayPayment = async () => {
     setLoading(true);

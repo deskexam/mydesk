@@ -34,8 +34,8 @@ export default function Dashboard() {
     if (data) setPapers(prev => [data, ...prev]);
   };
 
-  const isSubscribed = ['monthly', 'yearly'].includes(profile?.subscription_status)
-    && new Date(profile?.subscription_end) > new Date();
+  const isPaid = profile?.plan && profile.plan !== 'free' && profile?.days_until_expiry !== 0;
+  const showUpgradeBanner = profile?.show_upgrade_banner || (!isPaid && !profile?.trial_active);
 
   const subjectColors = {
     Mathematics: 'bg-blue-100 text-blue-700',
@@ -101,6 +101,18 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Expiry warning — only show when ≤5 days left */}
+          {profile?.show_upgrade_banner && profile?.days_until_expiry >= 0 && (
+            <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 mb-6 flex items-center justify-between">
+              <span className="text-amber-800 font-medium text-sm">
+                ⚠️ Your {profile?.plan} plan expires in <strong>{profile.days_until_expiry} day{profile.days_until_expiry !== 1 ? 's' : ''}</strong>. Renew to keep access.
+              </span>
+              <button onClick={() => navigate('/payment')} className="btn-gold text-xs py-1.5 px-4 ml-4 whitespace-nowrap">
+                Renew Now
+              </button>
+            </div>
+          )}
+
           {/* Stats row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
@@ -111,26 +123,48 @@ export default function Dashboard() {
               <div className="text-3xl font-serif font-bold text-primary-900">{papers.length}</div>
               <div className="text-gray-500 text-sm mt-1 flex items-center gap-1"><BookOpen className="w-3 h-3" /> In Library</div>
             </div>
-            <div className={`rounded-2xl p-5 border shadow-sm ${isSubscribed ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-              <div className={`text-3xl font-serif font-bold ${isSubscribed ? 'text-green-700' : 'text-amber-700'}`}>
-                {isSubscribed ? '∞' : profile?.credits ?? 0}
+            {/* Papers remaining */}
+            <div className="bg-blue-50 rounded-2xl p-5 border border-blue-100 shadow-sm">
+              <div className="text-3xl font-serif font-bold text-primary-900">
+                {profile?.papers_remaining ?? '—'}
               </div>
-              <div className={`text-sm mt-1 flex items-center gap-1 ${isSubscribed ? 'text-green-600' : 'text-amber-600'}`}>
-                <Download className="w-3 h-3" /> {isSubscribed ? `${profile?.subscription_status} plan` : 'Downloads left'}
+              <div className="text-blue-600 text-sm mt-1 flex items-center gap-1">
+                <Zap className="w-3 h-3" /> Papers Left
+              </div>
+              <div className="text-xs text-gray-400 mt-0.5">{profile?.papers_used ?? 0} / {profile?.papers_limit ?? 5} used</div>
+            </div>
+            {/* Downloads remaining */}
+            <div className="bg-green-50 rounded-2xl p-5 border border-green-100 shadow-sm">
+              <div className="text-3xl font-serif font-bold text-green-700">
+                {profile?.downloads_remaining ?? '—'}
+              </div>
+              <div className="text-green-600 text-sm mt-1 flex items-center gap-1">
+                <Download className="w-3 h-3" /> Downloads Left
+              </div>
+              <div className="text-xs text-gray-400 mt-0.5">{profile?.downloads_used ?? 0} / {profile?.downloads_limit ?? 3} used</div>
+            </div>
+          </div>
+
+          {/* Plan status bar */}
+          <div className={`rounded-2xl p-4 mb-6 flex items-center justify-between ${isPaid ? 'bg-green-50 border border-green-200' : 'bg-gray-100 border border-gray-200'}`}>
+            <div className="flex items-center gap-3">
+              <Star className={`w-4 h-4 ${isPaid ? 'text-green-600 fill-current' : 'text-gray-400'}`} />
+              <div>
+                <span className={`font-semibold text-sm ${isPaid ? 'text-green-800' : 'text-gray-600'}`}>
+                  {profile?.trial_active ? `Basic Trial — ${profile?.days_until_expiry} days left` :
+                   isPaid ? `${profile?.plan?.charAt(0).toUpperCase() + profile?.plan?.slice(1)} Plan Active` :
+                   'Free Plan'}
+                </span>
+                {isPaid && profile?.subscription_end && (
+                  <div className="text-xs text-gray-400">Renews {new Date(profile.subscription_end).toLocaleDateString('en-IN')}</div>
+                )}
               </div>
             </div>
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-              {isSubscribed ? (
-                <>
-                  <div className="text-sm font-bold text-green-600 flex items-center gap-1"><Star className="w-3 h-3 fill-current" /> Pro Active</div>
-                  <div className="text-xs text-gray-400 mt-1">Expires {new Date(profile?.subscription_end).toLocaleDateString('en-IN')}</div>
-                </>
-              ) : (
-                <button onClick={() => navigate('/payment')} className="btn-gold text-xs py-2 w-full">
-                  ⚡ Upgrade to Pro
-                </button>
-              )}
-            </div>
+            {showUpgradeBanner && (
+              <button onClick={() => navigate('/payment')} className="btn-gold text-xs py-1.5 px-4">
+                ⚡ Upgrade
+              </button>
+            )}
           </div>
 
           {/* Quick Actions */}

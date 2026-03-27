@@ -159,57 +159,73 @@ export default function LandingPage() {
 
       {/* Pricing */}
       <section id="pricing" className="py-20 px-6 bg-white">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <h2 className="font-serif text-4xl font-bold text-primary-900 mb-4">Simple, Honest Pricing</h2>
-            <p className="text-gray-600">Start free. Upgrade only when you need more.</p>
+            <p className="text-gray-600">Every new account gets a <strong>15-day free trial</strong> of Basic — no credit card required.</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-4 gap-5">
             {/* Free */}
-            <div className="border-2 border-gray-200 rounded-2xl p-8">
-              <h3 className="font-bold text-xl text-gray-800 mb-2">Free Starter</h3>
-              <div className="text-4xl font-serif font-bold text-primary-900 mb-1">₹0</div>
-              <p className="text-gray-500 text-sm mb-6">3 free paper downloads</p>
-              <ul className="space-y-2 text-sm text-gray-600 mb-8">
-                {['3 AI-generated papers', 'All question types', 'LaTeX rendering', 'Basic templates'].map(i => (
+            <div className="border-2 border-gray-200 rounded-2xl p-6">
+              <h3 className="font-bold text-lg text-gray-800 mb-1">Free Starter</h3>
+              <div className="text-3xl font-serif font-bold text-primary-900 mb-1">₹0</div>
+              <p className="text-gray-400 text-xs mb-4">After trial ends</p>
+              <ul className="space-y-2 text-sm text-gray-600 mb-6">
+                {['5 papers (lifetime)', '3 PDF downloads', 'Grade 8–10 only', 'Our watermark'].map(i => (
                   <li key={i} className="flex items-center gap-2"><span className="text-green-500">✓</span>{i}</li>
                 ))}
               </ul>
-              <button onClick={() => navigate('/auth')} className="w-full border-2 border-primary-900 text-primary-900 rounded-xl py-2.5 font-semibold hover:bg-primary-900 hover:text-white transition-all">
-                Start Free
+              <button onClick={() => navigate('/auth')} className="w-full border-2 border-primary-900 text-primary-900 rounded-xl py-2 text-sm font-semibold hover:bg-primary-900 hover:text-white transition-all">
+                Start Free Trial
               </button>
             </div>
-            {/* Monthly */}
-            <div className="border-2 border-primary-900 rounded-2xl p-8 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary-900 text-white text-xs font-bold px-4 py-1 rounded-full">POPULAR</div>
-              <h3 className="font-bold text-xl text-gray-800 mb-2">Monthly Pro</h3>
-              <div className="text-4xl font-serif font-bold text-primary-900 mb-1">₹300</div>
-              <p className="text-gray-500 text-sm mb-6">per month, unlimited</p>
-              <ul className="space-y-2 text-sm text-gray-600 mb-8">
-                {['Unlimited AI generation', 'All 11 templates', 'Unlimited PDF downloads', 'PDF import tools', 'Cloud library', 'Priority support'].map(i => (
+            {/* Basic */}
+            <div className="border-2 border-primary-900 rounded-2xl p-6 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary-900 text-white text-xs font-bold px-3 py-1 rounded-full">POPULAR</div>
+              <h3 className="font-bold text-lg text-gray-800 mb-1">Basic</h3>
+              <div className="text-3xl font-serif font-bold text-primary-900 mb-1">₹299<span className="text-base font-normal text-gray-500">/mo</span></div>
+              <p className="text-gray-400 text-xs mb-4">The Professional</p>
+              <ul className="space-y-2 text-sm text-gray-600 mb-6">
+                {['50 papers/month', '25 PDF downloads', 'Grade 8–12', 'No watermark', 'All templates', 'Cloud library'].map(i => (
                   <li key={i} className="flex items-center gap-2"><span className="text-green-500">✓</span>{i}</li>
                 ))}
               </ul>
-              <button onClick={() => navigate('/payment')} className="btn-primary w-full py-2.5">
-                Get Monthly Plan
+              <button onClick={() => navigate('/payment')} className="btn-primary w-full py-2 text-sm">
+                Get Basic
+              </button>
+            </div>
+            {/* Pro */}
+            <div className="border-2 border-purple-400 rounded-2xl p-6 relative bg-purple-50">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">INSTITUTE</div>
+              <h3 className="font-bold text-lg text-gray-800 mb-1">Pro</h3>
+              <div className="text-3xl font-serif font-bold text-primary-900 mb-1">₹599<span className="text-base font-normal text-gray-500">/mo</span></div>
+              <p className="text-gray-400 text-xs mb-4">The Institute</p>
+              <ul className="space-y-2 text-sm text-gray-600 mb-6">
+                {['100 papers/month', '50 PDF downloads', 'Grade 8–12', 'Custom institute logo', 'All templates', 'Priority support'].map(i => (
+                  <li key={i} className="flex items-center gap-2"><span className="text-purple-500">✓</span>{i}</li>
+                ))}
+              </ul>
+              <button onClick={() => navigate('/payment')} className="w-full bg-purple-600 text-white rounded-xl py-2 text-sm font-semibold hover:bg-purple-700 transition-all">
+                Get Pro
               </button>
             </div>
             {/* Yearly */}
-            <div className="border-2 border-gold rounded-2xl p-8 bg-amber-50 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gold text-primary-900 text-xs font-bold px-4 py-1 rounded-full">BEST VALUE</div>
-              <h3 className="font-bold text-xl text-gray-800 mb-2">Yearly Pro</h3>
-              <div className="text-4xl font-serif font-bold text-primary-900 mb-1">₹3000</div>
-              <p className="text-gray-500 text-sm mb-6">per year — save ₹600!</p>
-              <ul className="space-y-2 text-sm text-gray-600 mb-8">
-                {['Everything in Monthly', '2 months free', 'Early access features', 'Institute branding', 'Bulk paper tools', 'Dedicated support'].map(i => (
-                  <li key={i} className="flex items-center gap-2"><span className="text-green-500">✓</span>{i}</li>
+            <div className="border-2 border-gold rounded-2xl p-6 bg-amber-50 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gold text-primary-900 text-xs font-bold px-3 py-1 rounded-full">BEST VALUE</div>
+              <h3 className="font-bold text-lg text-gray-800 mb-1">Yearly</h3>
+              <div className="text-3xl font-serif font-bold text-primary-900 mb-1">₹6000<span className="text-base font-normal text-gray-500">/yr</span></div>
+              <p className="text-gray-400 text-xs mb-4">Pro features, save ₹1188</p>
+              <ul className="space-y-2 text-sm text-gray-600 mb-6">
+                {['1000 papers/year', '500 PDF downloads', 'Grade 8–12', 'Custom institute logo', 'Early access features', 'Dedicated support'].map(i => (
+                  <li key={i} className="flex items-center gap-2"><span className="text-amber-600">✓</span>{i}</li>
                 ))}
               </ul>
-              <button onClick={() => navigate('/payment')} className="btn-gold w-full py-2.5">
-                Get Yearly Plan
+              <button onClick={() => navigate('/payment')} className="btn-gold w-full py-2 text-sm">
+                Get Yearly
               </button>
             </div>
           </div>
+          <p className="text-center text-gray-500 text-sm mt-6">All new accounts get a <strong>15-day Basic trial</strong> automatically. No credit card needed.</p>
         </div>
       </section>
 

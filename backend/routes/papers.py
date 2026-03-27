@@ -10,6 +10,7 @@ from services.paper_generator import generate_paper, flatten_questions, verify_a
 from services.pdf_export import generate_pdf
 from services.rag_service import get_client
 from core.config import settings
+from core.plan_enforcement import enforce_and_reset, check_paper_limit, check_download_limit, check_grade_access
 
 router = APIRouter()
 
@@ -22,6 +23,13 @@ async def generate_paper_endpoint(
 ):
     """Generate a new exam paper using AI and RAG"""
     try:
+        # Enforce plan limits
+        sync_db = __import__('core.database', fromlist=['get_db']).get_db()
+        full_user = await sync_db.users.find_one({"_id": current_user["_id"]})
+        full_user = await enforce_and_reset(full_user, sync_db)
+        check_grade_access(full_user, str(paper_request.grade))
+        check_paper_limit(full_user)
+
         # Generate paper using EduRAG's paper generator
         question_types = paper_request.question_types or ["MCQ", "short_answer", "long_answer"]
         paper_data = generate_paper(
@@ -71,6 +79,12 @@ async def generate_paper_endpoint(
         result = await db.papers.insert_one(paper_doc)
         paper_doc["id"] = str(result.inserted_id)
         paper_doc.pop("_id", None)
+
+        # Increment usage counters
+        await sync_db.users.update_one(
+            {"_id": current_user["_id"]},
+            {"$inc": {"papers_used": 1, "total_papers_created": 1}}
+        )
 
         return paper_doc
 
@@ -162,32 +176,25 @@ async def download_paper(
     current_user: dict = Depends(get_current_user),
     db: AsyncIOMotorClient = Depends(get_async_db)
 ):
-    """Download paper as PDF — enforces credit/subscription check"""
-    # Validate template
+    """Download paper as PDF — enforces plan download limit"""
     if template not in ALLOWED_TEMPLATES:
         template = "standard"
 
-    # Enforce download quota on backend (can't be bypassed from frontend)
-    sub_status = current_user.get("subscription_status", "free")
-    sub_end = current_user.get("subscription_end")
-    credits = current_user.get("credits", 0)
-    is_subscribed = sub_status in ("monthly", "yearly") and (
-        sub_end is None or (isinstance(sub_end, datetime) and sub_end > datetime.utcnow())
-    )
-    if not is_subscribed and credits <= 0:
-        raise HTTPException(status_code=402, detail="No credits remaining. Please subscribe to download more papers.")
+    sync_db = __import__('core.database', fromlist=['get_db']).get_db()
+    full_user = await sync_db.users.find_one({"_id": current_user["_id"]})
+    full_user = await enforce_and_reset(full_user, sync_db)
+    check_download_limit(full_user)
 
     oid = _validate_object_id(paper_id)
     paper = await db.papers.find_one({"_id": oid, "created_by": str(current_user["_id"])})
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
-    # Deduct credit for non-subscribed users
-    if not is_subscribed:
-        await db.users.update_one(
-            {"_id": current_user["_id"]},
-            {"$inc": {"credits": -1}}
-        )
+    # Increment download counter
+    await sync_db.users.update_one(
+        {"_id": current_user["_id"]},
+        {"$inc": {"downloads_used": 1}}
+    )
 
     pdf_content = generate_pdf(paper, include_answer_key=answer_key, template=template)
 

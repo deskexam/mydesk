@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generateAndSavePaper } from '../lib/api';
 import toast from 'react-hot-toast';
-import { Sparkles, FileText, Download, Edit, BookOpen } from 'lucide-react';
+import { Sparkles, FileText, Download, Edit, BookOpen, Lock } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 const BOARDS = ["CBSE", "ICSE", "Maharashtra"];
 const GRADES = ["10", "11", "12"];
@@ -171,7 +172,9 @@ const TOPICS_BY_GRADE_SUBJECT = {
 
 export default function PaperGenerator() {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const isFree = !profile?.plan || profile?.plan === 'free';
   const [selectedTopics, setSelectedTopics] = useState([]);
 
   const [form, setForm] = useState({
@@ -313,10 +316,27 @@ export default function PaperGenerator() {
                   <select
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     value={form.grade}
-                    onChange={(e) => setForm({ ...form, grade: e.target.value })}
+                    onChange={(e) => {
+                      const g = e.target.value;
+                      if (isFree && (g === '11' || g === '12')) {
+                        toast.error('Grade 11 & 12 require Basic or higher plan.');
+                        return;
+                      }
+                      setForm({ ...form, grade: g });
+                    }}
                   >
-                    {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
+                    {GRADES.map((g) => (
+                      <option key={g} value={g} disabled={isFree && (g === '11' || g === '12')}>
+                        {g}{isFree && (g === '11' || g === '12') ? ' 🔒' : ''}
+                      </option>
+                    ))}
                   </select>
+                  {isFree && (
+                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> Grade 11 & 12 require Basic plan or higher.{' '}
+                      <button onClick={() => navigate('/payment')} className="underline font-semibold">Upgrade</button>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
