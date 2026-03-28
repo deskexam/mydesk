@@ -1,66 +1,48 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Download, Shield, Star, FileText, Layers, Sparkles, LogOut } from 'lucide-react';
+import { Zap, Download, Shield, Star, FileText, Layers, Sparkles, LogOut, Check, ArrowRight, BookOpen, Clock, Users } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
 
-  const handleLogout = () => { signOut(); };
-
-  const features = [
-    { icon: <Sparkles className="w-6 h-6" />, title: 'AI Question Generation', desc: 'Describe your topic, board, and difficulty — AI generates a full question paper in seconds. CBSE, JEE, NEET, and more.', primary: true },
-    { icon: <Layers className="w-6 h-6" />, title: '11 Professional Templates', desc: 'Pick any template — Classic, Modern, Two-Column, JEE, NEET, Olympiad. One click and the paper is styled instantly.', primary: true },
-    { icon: <Download className="w-6 h-6" />, title: 'Instant PDF Download', desc: 'Pixel-perfect PDF in seconds. Looks exactly like a printed exam paper. Download unlimited papers.', primary: true },
-    { icon: <FileText className="w-6 h-6" />, title: 'LaTeX Question Editor', desc: 'Write complex formulas with live preview. Physics, Chemistry, Calculus — all beautifully rendered.' },
-    { icon: <Zap className="w-6 h-6" />, title: 'PDF Import & Edit', desc: 'Import any PDF question paper into the editor. Convert to PPT or LaTeX.' },
-    { icon: <Shield className="w-6 h-6" />, title: 'Cloud Library', desc: 'All your papers saved securely. Re-edit, re-download anytime from any device.' },
-  ];
-
-  const testimonials = [
-    { name: 'Rajesh Kumar', role: 'Physics Teacher, Delhi', text: 'I generated a full JEE mock paper in under 2 minutes. The AI questions are surprisingly good and the PDF looks professional.', stars: 5 },
-    { name: 'Priya Sharma', role: 'Coaching Director, Kota', text: 'Our institute saves 3 hours per paper. We just pick a template and download — done. The AI generation is a game changer.', stars: 5 },
-    { name: 'Anand Verma', role: 'Math Tutor, Pune', text: 'Best investment for my coaching. AI generates 30 questions in seconds and the LaTeX rendering is flawless.', stars: 5 },
-  ];
-
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{ background: '#080d1a', color: '#e2e8f0', fontFamily: "'DM Sans', sans-serif" }}>
+
       {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-blue-100">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src="/s2.webp" alt="Deskexam" className="w-8 h-8 rounded-lg object-contain" />
-            <span className="font-serif text-xl font-bold text-primary-900">Deskexam</span>
+      <nav style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
+        background: 'rgba(8,13,26,0.85)', backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        boxShadow: '0 4px 30px rgba(0,0,0,0.3)'
+      }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src="/s2.webp" alt="Deskexam" style={{ width: 36, height: 36, borderRadius: 10, objectFit: 'contain' }} />
+            <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700, color: '#fff' }}>Deskexam</span>
           </div>
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-            <a href="#features" className="hover:text-primary-900">Features</a>
-            <a href="#how-it-works" className="hover:text-primary-900">How it Works</a>
-            <a href="#pricing" className="hover:text-primary-900">Pricing</a>
-            <a href="#contact" className="hover:text-primary-900">Contact</a>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 32 }} className="hidden-mobile-nav">
+            {['Features','How it Works','Pricing','Contact'].map(l => (
+              <a key={l} href={`#${l.toLowerCase().replace(/ /g,'-')}`}
+                style={{ color: '#94a3b8', fontSize: 14, fontWeight: 500, textDecoration: 'none', transition: 'color 0.2s' }}
+                onMouseEnter={e => e.target.style.color = '#F7C948'}
+                onMouseLeave={e => e.target.style.color = '#94a3b8'}
+              >{l}</a>
+            ))}
           </div>
-          <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {user ? (
               <>
-                <div className="w-8 h-8 bg-primary-900 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                  {(profile?.full_name || profile?.email || 'U')[0].toUpperCase()}
-                </div>
-                <span className="text-primary-900 font-semibold text-sm hidden sm:block">
-                  {profile?.full_name || profile?.email}
-                </span>
-                <button onClick={() => navigate('/dashboard')} className="btn-primary text-sm py-2">
-                  Dashboard →
-                </button>
-                <button onClick={handleLogout} className="text-gray-500 hover:text-primary-900 transition-colors" title="Sign out">
-                  <LogOut className="w-4 h-4" />
+                <button onClick={() => navigate('/dashboard')} style={styles.btnGold}>Dashboard →</button>
+                <button onClick={signOut} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 6 }} title="Sign out">
+                  <LogOut size={18} />
                 </button>
               </>
             ) : (
               <>
-                <button onClick={() => navigate('/auth')} className="text-primary-900 font-semibold text-sm">Login</button>
-                <button onClick={() => navigate('/auth')} className="btn-primary text-sm py-2">
-                  Start Free →
-                </button>
+                <button onClick={() => navigate('/auth')} style={{ background: 'none', border: 'none', color: '#94a3b8', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Login</button>
+                <button onClick={() => navigate('/auth')} style={styles.btnGold}>Start Free →</button>
               </>
             )}
           </div>
@@ -68,89 +50,147 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="pt-28 pb-20 px-6 hero-section relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-64 h-64 bg-gold rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 right-20 w-80 h-80 bg-blue-400 rounded-full blur-3xl"></div>
-        </div>
-        <div className="max-w-5xl mx-auto text-center relative">
-          <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 text-gold text-sm font-medium mb-6">
-            <Star className="w-4 h-4 fill-current" /> Trusted by 10,000+ teachers across India
+      <section style={{ paddingTop: 120, paddingBottom: 100, paddingLeft: 24, paddingRight: 24, position: 'relative', overflow: 'hidden' }}>
+        {/* Background orbs */}
+        <div style={{ position: 'absolute', top: 60, left: '10%', width: 500, height: 500, background: 'radial-gradient(circle, rgba(247,201,72,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: 100, right: '5%', width: 400, height: 400, background: 'radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: 0, left: '30%', width: 600, height: 300, background: 'radial-gradient(circle, rgba(247,201,72,0.04) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center', position: 'relative' }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: 'rgba(247,201,72,0.1)', border: '1px solid rgba(247,201,72,0.25)',
+            borderRadius: 999, padding: '6px 16px', fontSize: 13, fontWeight: 600, color: '#F7C948',
+            marginBottom: 28, backdropFilter: 'blur(10px)'
+          }}>
+            <Star size={14} fill="#F7C948" /> Trusted by 10,000+ teachers across India
           </div>
-          <h1 className="font-serif text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
+
+          <h1 style={{
+            fontFamily: "'Playfair Display', serif",
+            fontSize: 'clamp(42px, 6vw, 72px)',
+            fontWeight: 800, lineHeight: 1.1, marginBottom: 24,
+            background: 'linear-gradient(135deg, #ffffff 0%, #e2e8f0 60%, #94a3b8 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            letterSpacing: '-0.02em'
+          }}>
             Generate Question Papers<br />
-            <span className="text-gold">with AI — Download Instantly</span>
+            <span style={{
+              background: 'linear-gradient(135deg, #F7C948 0%, #FFB347 50%, #FF6B35 100%)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text'
+            }}>with AI — Download Instantly</span>
           </h1>
-          <p className="text-blue-200 text-xl mb-10 max-w-2xl mx-auto">
+
+          <p style={{ color: '#94a3b8', fontSize: 20, lineHeight: 1.7, marginBottom: 44, maxWidth: 620, margin: '0 auto 44px' }}>
             Pick a topic, choose a template, let AI build your question paper.
-            Download a print-ready PDF in under 2 minutes. CBSE, JEE, NEET formats.
+            Download a print-ready PDF in under 2 minutes. CBSE, ICSE, Maharashtra boards.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button onClick={() => navigate('/auth')} className="btn-gold text-lg px-8 py-3">
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'center', marginBottom: 20 }}>
+            <button onClick={() => navigate('/auth')} style={{ ...styles.btnGoldLarge, fontSize: 16 }}>
               Generate Your First Paper Free 🎓
             </button>
-            <button onClick={() => navigate('/auth')} className="border border-white/30 text-white rounded-lg px-8 py-3 font-semibold hover:bg-white/10 transition-all">
+            <button onClick={() => navigate('/auth')} style={{
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
+              color: '#e2e8f0', borderRadius: 12, padding: '14px 28px', fontWeight: 600, fontSize: 15,
+              cursor: 'pointer', backdropFilter: 'blur(10px)', transition: 'all 0.2s'
+            }}>
               See Templates →
             </button>
           </div>
-          <p className="text-blue-300 text-sm mt-4">No credit card required • 3 free paper downloads</p>
+          <p style={{ color: '#475569', fontSize: 13 }}>No credit card required • 15-day free trial included</p>
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="py-12 bg-primary-900 border-y border-blue-800">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {[['10,000+','Teachers'], ['50,000+','Papers Generated'], ['11','Templates'], ['₹300/mo','Unlimited Plan']].map(([num, label]) => (
+      {/* Stats bar */}
+      <section style={{ padding: '40px 24px', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 32, textAlign: 'center' }}>
+          {[
+            { num: '10,000+', label: 'Teachers', icon: <Users size={18} /> },
+            { num: '50,000+', label: 'Papers Generated', icon: <FileText size={18} /> },
+            { num: '11', label: 'Templates', icon: <Layers size={18} /> },
+            { num: '₹299/mo', label: 'Starting Price', icon: <Zap size={18} /> },
+          ].map(({ num, label, icon }) => (
             <div key={label}>
-              <div className="font-serif text-3xl font-bold text-gold">{num}</div>
-              <div className="text-blue-300 text-sm mt-1">{label}</div>
+              <div style={{ color: '#64748b', marginBottom: 6, display: 'flex', justifyContent: 'center' }}>{icon}</div>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 30, fontWeight: 800, background: 'linear-gradient(135deg, #F7C948, #FF9D4A)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{num}</div>
+              <div style={{ color: '#64748b', fontSize: 13, marginTop: 4 }}>{label}</div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* How it Works */}
-      <section id="how-it-works" className="py-20 px-6 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="font-serif text-4xl font-bold text-primary-900 mb-4">Ready in 3 Simple Steps</h2>
-            <p className="text-gray-600 text-lg">From idea to printed paper in under 2 minutes</p>
+      {/* How it works */}
+      <section id="how-it-works" style={{ padding: '100px 24px' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
+            <p style={{ color: '#F7C948', fontSize: 13, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 12 }}>Simple Process</p>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, color: '#fff', marginBottom: 16, letterSpacing: '-0.01em' }}>Ready in 3 Simple Steps</h2>
+            <p style={{ color: '#64748b', fontSize: 17 }}>From idea to printed paper in under 2 minutes</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
             {[
-              { step: '1', icon: '🧠', title: 'Describe Your Paper', desc: 'Enter subject, topic, board (CBSE/JEE/NEET), difficulty, and number of questions.' },
-              { step: '2', icon: '✨', title: 'AI Generates Questions', desc: 'Our AI creates MCQs, short answers, and long answers — with accurate answers and marking.' },
-              { step: '3', icon: '📄', title: 'Pick Template & Download', desc: 'Choose from 11 professional templates. Download a pixel-perfect PDF instantly.' },
+              { step: '01', emoji: '🧠', title: 'Describe Your Paper', desc: 'Enter subject, topic, board (CBSE/ICSE/Maharashtra), difficulty, and number of questions.' },
+              { step: '02', emoji: '✨', title: 'AI Generates Questions', desc: 'Our AI creates MCQs, short answers, and long answers — with accurate marking schemes.' },
+              { step: '03', emoji: '📄', title: 'Pick Template & Download', desc: 'Choose from 11 professional templates. Download a pixel-perfect PDF instantly.' },
             ].map((s) => (
-              <div key={s.step} className="text-center">
-                <div className="w-16 h-16 bg-primary-900 text-white rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4">{s.icon}</div>
-                <div className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Step {s.step}</div>
-                <h3 className="font-bold text-primary-900 text-xl mb-2">{s.title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{s.desc}</p>
+              <div key={s.step} style={{
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 20, padding: 32, position: 'relative', overflow: 'hidden',
+                transition: 'all 0.3s ease'
+              }}>
+                <div style={{
+                  position: 'absolute', top: 20, right: 20,
+                  fontFamily: "'Playfair Display', serif", fontSize: 56, fontWeight: 800,
+                  color: 'rgba(247,201,72,0.06)', lineHeight: 1
+                }}>{s.step}</div>
+                <div style={{ fontSize: 36, marginBottom: 20 }}>{s.emoji}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#F7C948', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 10 }}>Step {s.step}</div>
+                <h3 style={{ color: '#fff', fontSize: 20, fontWeight: 700, marginBottom: 12 }}>{s.title}</h3>
+                <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.7 }}>{s.desc}</p>
               </div>
             ))}
           </div>
-          <div className="text-center mt-12">
-            <button onClick={() => navigate('/auth')} className="btn-primary text-lg px-10 py-3">
-              Try It Now — Free
+          <div style={{ textAlign: 'center', marginTop: 48 }}>
+            <button onClick={() => navigate('/auth')} style={styles.btnPrimary}>
+              Try It Now — Free <ArrowRight size={16} style={{ display: 'inline', marginLeft: 6 }} />
             </button>
           </div>
         </div>
       </section>
 
       {/* Features */}
-      <section id="features" className="py-20 px-6 bg-gray-50">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="font-serif text-4xl font-bold text-primary-900 mb-4">Everything You Need</h2>
-            <p className="text-gray-600 text-lg">Powerful tools designed specifically for Indian educators</p>
+      <section id="features" style={{ padding: '100px 24px', background: 'rgba(255,255,255,0.015)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
+            <p style={{ color: '#F7C948', fontSize: 13, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 12 }}>Features</p>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, color: '#fff', marginBottom: 16 }}>Everything You Need</h2>
+            <p style={{ color: '#64748b', fontSize: 17 }}>Powerful tools designed specifically for Indian educators</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {features.map((f, i) => (
-              <div key={i} className={`rounded-2xl p-6 border hover:shadow-lg transition-all feature-card ${f.primary ? 'bg-primary-900 border-primary-800' : 'bg-white border-gray-100 hover:border-blue-200'}`}>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${f.primary ? 'bg-white/10 text-gold' : 'bg-blue-50 text-primary-900'}`}>{f.icon}</div>
-                <h3 className={`font-semibold text-lg mb-2 ${f.primary ? 'text-white' : 'text-primary-900'}`}>{f.title}</h3>
-                <p className={`text-sm leading-relaxed ${f.primary ? 'text-blue-200' : 'text-gray-500'}`}>{f.desc}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+            {[
+              { icon: <Sparkles size={22} />, title: 'AI Question Generation', desc: 'Describe topic, board, difficulty — AI generates a full paper in seconds. CBSE, ICSE, Maharashtra, JEE, NEET.', primary: true },
+              { icon: <Layers size={22} />, title: '11 Professional Templates', desc: 'Classic, Modern, Two-Column, JEE, NEET, Olympiad. One click styles your paper instantly.', primary: true },
+              { icon: <Download size={22} />, title: 'Instant PDF Download', desc: 'Pixel-perfect PDF in seconds. Looks exactly like a printed exam paper ready to photocopy.', primary: true },
+              { icon: <FileText size={22} />, title: 'LaTeX Question Editor', desc: 'Write complex formulas with live preview. Physics, Chemistry, Calculus — beautifully rendered.' },
+              { icon: <Zap size={22} />, title: 'PDF Import & Edit', desc: 'Import any PDF question paper into the editor. Convert and customize with ease.' },
+              { icon: <Shield size={22} />, title: 'Cloud Library', desc: 'All your papers saved securely. Re-edit, re-download anytime from any device.' },
+            ].map((f, i) => (
+              <div key={i} style={{
+                borderRadius: 20, padding: 28, border: '1px solid',
+                background: f.primary
+                  ? 'linear-gradient(135deg, rgba(247,201,72,0.08) 0%, rgba(255,107,53,0.05) 100%)'
+                  : 'rgba(255,255,255,0.02)',
+                borderColor: f.primary ? 'rgba(247,201,72,0.2)' : 'rgba(255,255,255,0.07)',
+                transition: 'all 0.3s ease',
+              }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: 20, background: f.primary ? 'rgba(247,201,72,0.15)' : 'rgba(255,255,255,0.05)',
+                  color: f.primary ? '#F7C948' : '#94a3b8'
+                }}>{f.icon}</div>
+                <h3 style={{ color: '#fff', fontSize: 17, fontWeight: 700, marginBottom: 10 }}>{f.title}</h3>
+                <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.7 }}>{f.desc}</p>
               </div>
             ))}
           </div>
@@ -158,89 +198,93 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="py-20 px-6 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-14">
-            <h2 className="font-serif text-4xl font-bold text-primary-900 mb-4">Simple, Honest Pricing</h2>
-            <p className="text-gray-600">Every new account gets a <strong>15-day free trial</strong> of Basic — no credit card required.</p>
+      <section id="pricing" style={{ padding: '100px 24px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
+            <p style={{ color: '#F7C948', fontSize: 13, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 12 }}>Pricing</p>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, color: '#fff', marginBottom: 16 }}>Simple, Honest Pricing</h2>
+            <p style={{ color: '#64748b', fontSize: 17 }}>Every new account gets a <strong style={{ color: '#F7C948' }}>15-day free trial</strong> — no credit card required.</p>
           </div>
-          <div className="grid md:grid-cols-4 gap-5">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 20, alignItems: 'start' }}>
             {/* Free */}
-            <div className="border-2 border-gray-200 rounded-2xl p-6">
-              <h3 className="font-bold text-lg text-gray-800 mb-1">Free Starter</h3>
-              <div className="text-3xl font-serif font-bold text-primary-900 mb-1">₹0</div>
-              <p className="text-gray-400 text-xs mb-4">After trial ends</p>
-              <ul className="space-y-2 text-sm text-gray-600 mb-6">
-                {['5 papers (lifetime)', '3 PDF downloads', 'Grade 8–10 only', 'Our watermark'].map(i => (
-                  <li key={i} className="flex items-center gap-2"><span className="text-green-500">✓</span>{i}</li>
-                ))}
-              </ul>
-              <button onClick={() => navigate('/auth')} className="w-full border-2 border-primary-900 text-primary-900 rounded-xl py-2 text-sm font-semibold hover:bg-primary-900 hover:text-white transition-all">
-                Start Free Trial
-              </button>
-            </div>
+            <PricingCard
+              title="Free Starter"
+              price="₹0"
+              sub="After trial ends"
+              features={['5 papers (lifetime)', '3 PDF downloads', 'Grade 8–10 only', 'Watermark on PDF']}
+              buttonText="Start Free Trial"
+              onClick={() => navigate('/auth')}
+              accentColor="#64748b"
+            />
             {/* Basic */}
-            <div className="border-2 border-primary-900 rounded-2xl p-6 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary-900 text-white text-xs font-bold px-3 py-1 rounded-full">POPULAR</div>
-              <h3 className="font-bold text-lg text-gray-800 mb-1">Basic</h3>
-              <div className="text-3xl font-serif font-bold text-primary-900 mb-1">₹299<span className="text-base font-normal text-gray-500">/mo</span></div>
-              <p className="text-gray-400 text-xs mb-4">The Professional</p>
-              <ul className="space-y-2 text-sm text-gray-600 mb-6">
-                {['50 papers/month', '25 PDF downloads', 'Grade 8–12', 'No watermark', 'All templates', 'Cloud library'].map(i => (
-                  <li key={i} className="flex items-center gap-2"><span className="text-green-500">✓</span>{i}</li>
-                ))}
-              </ul>
-              <button onClick={() => navigate('/payment')} className="btn-primary w-full py-2 text-sm">
-                Get Basic
-              </button>
-            </div>
+            <PricingCard
+              title="Basic"
+              price="₹299"
+              period="/mo"
+              sub="Most Popular"
+              features={['50 papers/month', '25 PDF downloads', 'Grade 8–12', 'No watermark', 'All templates', 'Cloud library']}
+              buttonText="Get Basic"
+              onClick={() => navigate('/payment')}
+              highlight
+              accentColor="#6366f1"
+              badge="POPULAR"
+            />
             {/* Pro */}
-            <div className="border-2 border-purple-400 rounded-2xl p-6 relative bg-purple-50">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">INSTITUTE</div>
-              <h3 className="font-bold text-lg text-gray-800 mb-1">Pro</h3>
-              <div className="text-3xl font-serif font-bold text-primary-900 mb-1">₹599<span className="text-base font-normal text-gray-500">/mo</span></div>
-              <p className="text-gray-400 text-xs mb-4">The Institute</p>
-              <ul className="space-y-2 text-sm text-gray-600 mb-6">
-                {['100 papers/month', '50 PDF downloads', 'Grade 8–12', 'Custom institute logo', 'All templates', 'Priority support'].map(i => (
-                  <li key={i} className="flex items-center gap-2"><span className="text-purple-500">✓</span>{i}</li>
-                ))}
-              </ul>
-              <button onClick={() => navigate('/payment')} className="w-full bg-purple-600 text-white rounded-xl py-2 text-sm font-semibold hover:bg-purple-700 transition-all">
-                Get Pro
-              </button>
-            </div>
+            <PricingCard
+              title="Pro"
+              price="₹599"
+              period="/mo"
+              sub="For Institutes"
+              features={['100 papers/month', '50 PDF downloads', 'Grade 8–12', 'Custom institute logo', 'All templates', 'Priority support']}
+              buttonText="Get Pro"
+              onClick={() => navigate('/payment')}
+              accentColor="#a855f7"
+              badge="INSTITUTE"
+            />
             {/* Yearly */}
-            <div className="border-2 border-gold rounded-2xl p-6 bg-amber-50 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gold text-primary-900 text-xs font-bold px-3 py-1 rounded-full">BEST VALUE</div>
-              <h3 className="font-bold text-lg text-gray-800 mb-1">Yearly</h3>
-              <div className="text-3xl font-serif font-bold text-primary-900 mb-1">₹6000<span className="text-base font-normal text-gray-500">/yr</span></div>
-              <p className="text-gray-400 text-xs mb-4">Pro features, save ₹1188</p>
-              <ul className="space-y-2 text-sm text-gray-600 mb-6">
-                {['1000 papers/year', '500 PDF downloads', 'Grade 8–12', 'Custom institute logo', 'Early access features', 'Dedicated support'].map(i => (
-                  <li key={i} className="flex items-center gap-2"><span className="text-amber-600">✓</span>{i}</li>
-                ))}
-              </ul>
-              <button onClick={() => navigate('/payment')} className="btn-gold w-full py-2 text-sm">
-                Get Yearly
-              </button>
-            </div>
+            <PricingCard
+              title="Yearly Pro"
+              price="₹6000"
+              period="/yr"
+              sub="Save ₹1188"
+              features={['1000 papers/year', '500 PDF downloads', 'Grade 8–12', 'Custom institute logo', 'Early access features', 'Dedicated support']}
+              buttonText="Get Yearly"
+              onClick={() => navigate('/payment')}
+              accentColor="#F7C948"
+              badge="BEST VALUE"
+              gold
+            />
           </div>
-          <p className="text-center text-gray-500 text-sm mt-6">All new accounts get a <strong>15-day Basic trial</strong> automatically. No credit card needed.</p>
+          <p style={{ textAlign: 'center', color: '#475569', fontSize: 13, marginTop: 32 }}>
+            All new accounts get a <strong style={{ color: '#F7C948' }}>15-day Basic trial</strong> automatically. No credit card needed.
+          </p>
         </div>
       </section>
 
       {/* Testimonials */}
-      <section className="py-20 px-6 bg-gray-50">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="font-serif text-4xl font-bold text-primary-900 text-center mb-12">Loved by Teachers</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((t, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                <div className="flex gap-1 mb-3">{[...Array(t.stars)].map((_, j) => <Star key={j} className="w-4 h-4 text-gold fill-current" />)}</div>
-                <p className="text-gray-600 text-sm leading-relaxed mb-4">"{t.text}"</p>
+      <section style={{ padding: '100px 24px', background: 'rgba(255,255,255,0.015)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 64 }}>
+            <p style={{ color: '#F7C948', fontSize: 13, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 12 }}>Testimonials</p>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(32px, 4vw, 48px)', fontWeight: 800, color: '#fff' }}>Loved by Teachers</h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+            {[
+              { name: 'Rajesh Kumar', role: 'Physics Teacher, Delhi', text: 'I generated a full mock paper in under 2 minutes. The AI questions are surprisingly good and the PDF looks professional.' },
+              { name: 'Priya Sharma', role: 'Coaching Director, Kota', text: 'Our institute saves 3 hours per paper. We just pick a template and download — done. The AI generation is a game changer.' },
+              { name: 'Anand Verma', role: 'Math Tutor, Pune', text: 'Best investment for my coaching. AI generates 30 questions in seconds and the LaTeX rendering is flawless.' },
+            ].map((t, i) => (
+              <div key={i} style={{
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 20, padding: 28
+              }}>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+                  {[...Array(5)].map((_, j) => <Star key={j} size={14} fill="#F7C948" color="#F7C948" />)}
+                </div>
+                <p style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.8, marginBottom: 20, fontStyle: 'italic' }}>"{t.text}"</p>
                 <div>
-                  <div className="font-semibold text-primary-900 text-sm">{t.name}</div>
-                  <div className="text-gray-400 text-xs">{t.role}</div>
+                  <div style={{ color: '#e2e8f0', fontWeight: 700, fontSize: 14 }}>{t.name}</div>
+                  <div style={{ color: '#475569', fontSize: 12, marginTop: 4 }}>{t.role}</div>
                 </div>
               </div>
             ))}
@@ -249,63 +293,135 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 px-6 bg-primary-900">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="font-serif text-4xl font-bold text-white mb-4">Generate Your First Paper in 2 Minutes</h2>
-          <p className="text-blue-200 text-lg mb-8">AI question generation · 11 templates · Instant PDF download</p>
-          <button onClick={() => navigate('/auth')} className="btn-gold text-lg px-10 py-4">
+      <section style={{ padding: '100px 24px', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, rgba(247,201,72,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center', position: 'relative' }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(32px, 4vw, 52px)', fontWeight: 800, color: '#fff', marginBottom: 16, letterSpacing: '-0.01em' }}>
+            Generate Your First Paper<br />
+            <span style={{ background: 'linear-gradient(135deg, #F7C948, #FF9D4A)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>in 2 Minutes</span>
+          </h2>
+          <p style={{ color: '#64748b', fontSize: 17, marginBottom: 40 }}>AI question generation · 11 templates · Instant PDF download</p>
+          <button onClick={() => navigate('/auth')} style={{ ...styles.btnGoldLarge, fontSize: 17, padding: '16px 40px' }}>
             Start Free — No Credit Card 🚀
           </button>
         </div>
       </section>
 
-      {/* Contact Us */}
-      <section id="contact" className="py-20 px-6 bg-white">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="font-serif text-4xl font-bold text-primary-900 mb-4">Contact Us</h2>
-          <p className="text-gray-600 text-lg mb-10">Have questions or need help? We're here for you.</p>
-          <div className="grid sm:grid-cols-2 gap-6">
-            <a href="mailto:deskexamsupporter@gmail.com"
-              className="flex flex-col items-center gap-3 p-6 border-2 border-gray-100 rounded-2xl hover:border-blue-200 hover:shadow-md transition-all group">
-              <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center text-primary-900 group-hover:bg-blue-100 transition-colors">
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div>
-                <div className="font-semibold text-primary-900 mb-1">Email Support</div>
-                <div className="text-blue-600 text-sm">deskexamsupporter@gmail.com</div>
-              </div>
+      {/* Contact */}
+      <section id="contact" style={{ padding: '80px 24px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 800, color: '#fff', marginBottom: 12 }}>Contact Us</h2>
+          <p style={{ color: '#64748b', fontSize: 16, marginBottom: 40 }}>Have questions or need help? We're here for you.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <a href="mailto:deskexamsupporter@gmail.com" style={styles.contactCard}>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>✉️</div>
+              <div style={{ color: '#e2e8f0', fontWeight: 700, marginBottom: 6 }}>Email Support</div>
+              <div style={{ color: '#6366f1', fontSize: 13 }}>deskexamsupporter@gmail.com</div>
             </a>
-            <a href="https://wa.me/918625969689" target="_blank" rel="noopener noreferrer"
-              className="flex flex-col items-center gap-3 p-6 border-2 border-gray-100 rounded-2xl hover:border-green-200 hover:shadow-md transition-all group">
-              <div className="w-14 h-14 bg-green-50 rounded-xl flex items-center justify-center text-green-600 group-hover:bg-green-100 transition-colors">
-                <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                </svg>
-              </div>
-              <div>
-                <div className="font-semibold text-primary-900 mb-1">WhatsApp Support</div>
-                <div className="text-green-600 text-sm">+91 86259 69689</div>
-              </div>
+            <a href="https://wa.me/918625969689" target="_blank" rel="noopener noreferrer" style={styles.contactCard}>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>💬</div>
+              <div style={{ color: '#e2e8f0', fontWeight: 700, marginBottom: 6 }}>WhatsApp Support</div>
+              <div style={{ color: '#22c55e', fontSize: 13 }}>+91 86259 69689</div>
             </a>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-10 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <img src="/s2.webp" alt="Deskexam" className="w-6 h-6 rounded object-contain" />
-            <span className="font-serif font-bold text-white">Deskexam</span>
+      <footer style={{ padding: '32px 24px', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <img src="/s2.webp" alt="Deskexam" style={{ width: 24, height: 24, borderRadius: 6, objectFit: 'contain' }} />
+            <span style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, color: '#fff', fontSize: 16 }}>Deskexam</span>
           </div>
-          <p className="text-sm">© 2024 Deskexam. Made with ❤️ for Indian Teachers.</p>
-          <div className="flex gap-4 text-sm">
-            <a href="mailto:deskexamsupporter@gmail.com" className="hover:text-white">deskexamsupporter@gmail.com</a>
-          </div>
+          <p style={{ color: '#374151', fontSize: 13 }}>© 2024 Deskexam. Made with ❤️ for Indian Teachers.</p>
+          <a href="mailto:deskexamsupporter@gmail.com" style={{ color: '#475569', fontSize: 13, textDecoration: 'none' }}>deskexamsupporter@gmail.com</a>
         </div>
       </footer>
     </div>
   );
 }
+
+function PricingCard({ title, price, period, sub, features, buttonText, onClick, highlight, gold, accentColor, badge }) {
+  return (
+    <div style={{
+      borderRadius: 20, padding: 28,
+      background: gold
+        ? 'linear-gradient(135deg, rgba(247,201,72,0.08) 0%, rgba(255,107,53,0.05) 100%)'
+        : highlight
+        ? 'rgba(99,102,241,0.07)'
+        : 'rgba(255,255,255,0.02)',
+      border: `1px solid ${gold ? 'rgba(247,201,72,0.3)' : highlight ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.07)'}`,
+      position: 'relative',
+      transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+    }}>
+      {badge && (
+        <div style={{
+          position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)',
+          background: gold ? '#F7C948' : highlight ? '#6366f1' : accentColor,
+          color: gold ? '#0a0f1a' : '#fff',
+          fontSize: 10, fontWeight: 800, letterSpacing: '0.1em',
+          padding: '4px 12px', borderRadius: 999
+        }}>{badge}</div>
+      )}
+      <h3 style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginBottom: 8, marginTop: badge ? 8 : 0 }}>{title}</h3>
+      <div style={{ marginBottom: 4 }}>
+        <span style={{
+          fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 800,
+          background: `linear-gradient(135deg, ${accentColor}, ${accentColor}cc)`,
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text'
+        }}>{price}</span>
+        {period && <span style={{ color: '#475569', fontSize: 14 }}>{period}</span>}
+      </div>
+      <p style={{ color: '#475569', fontSize: 12, marginBottom: 24 }}>{sub}</p>
+      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {features.map(f => (
+          <li key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#94a3b8' }}>
+            <Check size={14} color={accentColor} style={{ flexShrink: 0 }} /> {f}
+          </li>
+        ))}
+      </ul>
+      <button onClick={onClick} style={{
+        width: '100%', padding: '12px 0', borderRadius: 12, fontWeight: 700, fontSize: 14,
+        cursor: 'pointer', border: 'none', transition: 'all 0.2s',
+        background: gold
+          ? 'linear-gradient(135deg, #F7C948, #FF9D4A)'
+          : highlight
+          ? 'linear-gradient(135deg, #6366f1, #4f46e5)'
+          : `rgba(${accentColor === '#64748b' ? '100,116,139' : '168,85,247'},0.15)`,
+        color: gold ? '#0a0f1a' : '#fff',
+        border: gold || highlight ? 'none' : `1px solid ${accentColor}44`,
+      }}>{buttonText}</button>
+    </div>
+  );
+}
+
+const styles = {
+  btnGold: {
+    background: 'linear-gradient(135deg, #F7C948, #FF9D4A)',
+    color: '#0a0f1a', borderRadius: 10, padding: '9px 20px',
+    fontWeight: 800, fontSize: 13, border: 'none', cursor: 'pointer',
+    boxShadow: '0 4px 20px rgba(247,201,72,0.3)', letterSpacing: '0.3px',
+    transition: 'all 0.2s'
+  },
+  btnGoldLarge: {
+    background: 'linear-gradient(135deg, #F7C948, #FF9D4A)',
+    color: '#0a0f1a', borderRadius: 14, padding: '14px 32px',
+    fontWeight: 800, fontSize: 15, border: 'none', cursor: 'pointer',
+    boxShadow: '0 8px 32px rgba(247,201,72,0.35)', letterSpacing: '0.3px',
+    transition: 'all 0.2s'
+  },
+  btnPrimary: {
+    background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+    color: '#fff', borderRadius: 12, padding: '13px 32px',
+    fontWeight: 700, fontSize: 15, border: 'none', cursor: 'pointer',
+    boxShadow: '0 6px 24px rgba(99,102,241,0.3)',
+    transition: 'all 0.2s'
+  },
+  contactCard: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center',
+    padding: 28, borderRadius: 20, textDecoration: 'none',
+    background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+    transition: 'all 0.2s'
+  }
+};
