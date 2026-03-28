@@ -11,6 +11,7 @@ import PaymentPage from './pages/PaymentPage';
 import SettingsPage from './pages/SettingsPage';
 import PaperGenerator from './pages/PaperGenerator';
 import AdminPage from './pages/AdminPage';
+import NewPaperPage from './pages/NewPaperPage';
 import './styles/index.css';
 
 function PrivateRoute({ children }) {
@@ -34,6 +35,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/new-paper" element={<PrivateRoute><NewPaperPage /></PrivateRoute>} />
           <Route path="/editor" element={<PrivateRoute><EditorPage /></PrivateRoute>} />
           <Route path="/editor/:paperId" element={<PrivateRoute><EditorPage /></PrivateRoute>} />
           <Route path="/templates" element={<PrivateRoute><TemplatesPage /></PrivateRoute>} />

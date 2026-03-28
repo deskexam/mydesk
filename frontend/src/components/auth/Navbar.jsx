@@ -25,7 +25,7 @@ export default function Navbar() {
 
   const navLinks = [
     { path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-    { path: '/editor', label: 'New Paper', icon: <FileText className="w-4 h-4" /> },
+    { path: '/new-paper', label: 'New Paper', icon: <FileText className="w-4 h-4" /> },
     { path: '/templates', label: 'Templates', icon: <Layers className="w-4 h-4" /> },
     { path: '/pdf-tools', label: 'PDF Tools', icon: <File className="w-4 h-4" /> },
   ];
