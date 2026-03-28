@@ -3,6 +3,8 @@ from typing import List, Optional
 from datetime import datetime
 from bson import ObjectId
 import json
+import asyncio
+from functools import partial
 from core.database import get_db
 from core.security import require_admin, get_current_user
 from services.pdf_service import save_upload, extract_text_chunks
@@ -33,7 +35,8 @@ async def upload_document(
     file_bytes = await file.read()
     filename = await save_upload(file_bytes, file.filename)
 
-    chunks = extract_text_chunks(filename)
+    loop = asyncio.get_event_loop()
+    chunks = await loop.run_in_executor(None, extract_text_chunks, filename)
     if not chunks:
         raise HTTPException(status_code=422, detail="Could not extract text from PDF")
 
@@ -52,11 +55,12 @@ async def upload_document(
     result = await db.documents.insert_one(doc)
     doc_id = str(result.inserted_id)
 
-    index_chunks(
+    await loop.run_in_executor(None, partial(
+        index_chunks,
         doc_id=doc_id,
         chunks=chunks,
         metadata={"board": board, "grade": grade, "subject": subject, "topics": topics_list, "title": title},
-    )
+    ))
 
     doc["id"] = doc_id
     return {"message": "Document uploaded and indexed successfully", "doc_id": doc_id, "chunks": len(chunks)}
