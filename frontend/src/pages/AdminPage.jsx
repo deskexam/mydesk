@@ -7,9 +7,19 @@ import { fastapiClient } from '../lib/api';
 import toast from 'react-hot-toast';
 
 const BOARDS = ['CBSE', 'ICSE', 'Maharashtra'];
-const GRADES = ['10', '11', '12'];
+const GRADES = ['8', '9', '10', '11', '12'];
 
 const SUBJECTS_BY_GRADE = {
+  '8': {
+    'CBSE':        ['Mathematics', 'Science', 'English', 'History', 'Geography', 'Civics'],
+    'ICSE':        ['Mathematics', 'Science', 'English', 'History & Civics', 'Geography'],
+    'Maharashtra': ['Mathematics', 'Science & Technology', 'English', 'History & Political Science', 'Geography'],
+  },
+  '9': {
+    'CBSE':        ['Mathematics', 'Science', 'English', 'History', 'Geography', 'Economics'],
+    'ICSE':        ['Mathematics', 'Science', 'English', 'History & Civics', 'Geography'],
+    'Maharashtra': ['Mathematics', 'Science & Technology', 'English', 'History & Political Science', 'Geography'],
+  },
   '10': {
     'CBSE':        ['Mathematics', 'Science', 'English', 'History', 'Geography'],
     'ICSE':        ['Mathematics', 'Science', 'English', 'History & Civics', 'Geography'],
@@ -28,6 +38,87 @@ const SUBJECTS_BY_GRADE = {
 };
 
 const TOPICS_BY_GRADE_SUBJECT = {
+  '8': {
+    'Mathematics': [
+      'Rational Numbers', 'Linear Equations in One Variable', 'Understanding Quadrilaterals',
+      'Data Handling', 'Squares and Square Roots', 'Cubes and Cube Roots',
+      'Comparing Quantities', 'Algebraic Expressions and Identities',
+      'Mensuration', 'Exponents and Powers', 'Direct and Inverse Proportions',
+      'Factorisation', 'Introduction to Graphs',
+    ],
+    'Science': [
+      'Crop Production and Management', 'Microorganisms', 'Synthetic Fibres and Plastics',
+      'Materials: Metals and Non-Metals', 'Coal and Petroleum', 'Combustion and Flame',
+      'Conservation of Plants and Animals', 'Cell', 'Reproduction in Animals',
+      'Reaching the Age of Adolescence', 'Force and Pressure', 'Friction',
+      'Sound', 'Chemical Effects of Electric Current', 'Some Natural Phenomena', 'Light',
+    ],
+    'Science & Technology': [
+      'Living World and Classification', 'Health and Disease', 'Force and Pressure',
+      'Current Electricity', 'Inside the Atom', 'Metals and Nonmetals',
+      'Pollution', 'Cell and Cell Organelles', 'Ecosystem',
+    ],
+    'English': ['Prose', 'Poetry', 'Grammar', 'Writing Skills'],
+    'History': [
+      'How, When and Where', 'From Trade to Territory', 'Ruling the Countryside',
+      'Tribals, Dikus and the Vision of a Golden Age', 'When People Rebel',
+      'Civilising the "Native"', 'Women, Caste and Reform', 'The Making of the National Movement',
+      'India After Independence',
+    ],
+    'Geography': [
+      'Resources', 'Land, Soil, Water, Natural Vegetation and Wildlife',
+      'Mineral and Power Resources', 'Agriculture', 'Industries', 'Human Resources',
+    ],
+    'History & Civics': [
+      'The Modern Age in Europe', 'The British Empire in India', 'Struggle for Independence',
+      'The Indian Constitution', 'Parliament', 'The Judiciary',
+    ],
+    'History & Political Science': [
+      'History of Modern India', 'Indian Constitution', 'Social Issues',
+    ],
+    'Civics': ['The Indian Constitution', 'Parliament', 'The Judiciary', 'Social Justice'],
+    'Economics': ['Resources', 'Development'],
+  },
+  '9': {
+    'Mathematics': [
+      'Number Systems', 'Polynomials', 'Coordinate Geometry',
+      'Linear Equations in Two Variables', 'Introduction to Euclid\'s Geometry',
+      'Lines and Angles', 'Triangles', 'Quadrilaterals', 'Circles',
+      'Heron\'s Formula', 'Surface Areas and Volumes', 'Statistics',
+    ],
+    'Science': [
+      'Matter in Our Surroundings', 'Is Matter Around Us Pure',
+      'Atoms and Molecules', 'Structure of the Atom',
+      'The Fundamental Unit of Life', 'Tissues', 'Motion', 'Force and Laws of Motion',
+      'Gravitation', 'Work and Energy', 'Sound', 'Improvement in Food Resources',
+    ],
+    'Science & Technology': [
+      'Laws of Motion', 'Gravitation', 'Current Electricity', 'Magnetic Effect',
+      'Atoms and Molecules', 'Carbon Compounds', 'Classification of Plants and Animals',
+      'Economic Importance of Biology',
+    ],
+    'English': ['Prose', 'Poetry', 'Drama', 'Grammar', 'Writing Skills'],
+    'History': [
+      'The French Revolution', 'Socialism in Europe and the Russian Revolution',
+      'Nazism and the Rise of Hitler', 'Forest Society and Colonialism',
+      'Pastoralists in the Modern World',
+    ],
+    'Geography': [
+      'India – Size and Location', 'Physical Features of India', 'Drainage',
+      'Climate', 'Natural Vegetation and Wildlife', 'Population',
+    ],
+    'Economics': [
+      'The Story of Village Palampur', 'People as Resource',
+      'Poverty as a Challenge', 'Food Security in India',
+    ],
+    'History & Civics': [
+      'The French Revolution', 'Russian Revolution', 'Rise of Nazism',
+      'Electoral Politics', 'Working of Institutions', 'Democratic Rights',
+    ],
+    'History & Political Science': [
+      'Modern Indian History', 'Democratic Politics', 'Social Issues', 'Economics Basics',
+    ],
+  },
   '10': {
     'Mathematics': [
       'Real Numbers', 'Polynomials', 'Pair of Linear Equations in Two Variables',
