@@ -10,8 +10,8 @@ export default function LandingPage() {
   const handleLogout = () => { signOut(); };
 
   const features = [
-    { icon: <Sparkles className="w-6 h-6" />, title: 'AI Question Generation', desc: 'Describe your topic, board, and difficulty — AI generates a full question paper in seconds. CBSE, JEE, NEET, and more.', primary: true },
-    { icon: <Layers className="w-6 h-6" />, title: '11 Professional Templates', desc: 'Pick any template — Classic, Modern, Two-Column, JEE, NEET, Olympiad. One click and the paper is styled instantly.', primary: true },
+    { icon: <Sparkles className="w-6 h-6" />, title: 'AI Question Generation', desc: 'Describe your topic, board, and difficulty — AI generates a full question paper in seconds. CBSE, ICSE, Maharashtra State Board grades 8–12.', primary: true },
+    { icon: <Layers className="w-6 h-6" />, title: '11 Professional Templates', desc: 'Pick any template — Classic, Modern, Two-Column, Olympiad and more. One click and the paper is styled instantly.', primary: true },
     { icon: <Download className="w-6 h-6" />, title: 'Instant PDF Download', desc: 'Pixel-perfect PDF in seconds. Looks exactly like a printed exam paper. Download unlimited papers.', primary: true },
     { icon: <FileText className="w-6 h-6" />, title: 'LaTeX Question Editor', desc: 'Write complex formulas with live preview. Physics, Chemistry, Calculus — all beautifully rendered.' },
     { icon: <Zap className="w-6 h-6" />, title: 'PDF Import & Edit', desc: 'Import any PDF question paper into the editor. Convert to PPT or LaTeX.' },
@@ -19,7 +19,7 @@ export default function LandingPage() {
   ];
 
   const testimonials = [
-    { name: 'Rajesh Kumar', role: 'Physics Teacher, Delhi', text: 'I generated a full JEE mock paper in under 2 minutes. The AI questions are surprisingly good and the PDF looks professional.', stars: 5 },
+    { name: 'Rajesh Kumar', role: 'Physics Teacher, Delhi', text: 'I generated a full Class 12 CBSE mock paper in under 2 minutes. The AI questions are surprisingly good and the PDF looks professional.', stars: 5 },
     { name: 'Priya Sharma', role: 'Coaching Director, Kota', text: 'Our institute saves 3 hours per paper. We just pick a template and download — done. The AI generation is a game changer.', stars: 5 },
     { name: 'Anand Verma', role: 'Math Tutor, Pune', text: 'Best investment for my coaching. AI generates 30 questions in seconds and the LaTeX rendering is flawless.', stars: 5 },
   ];
@@ -83,7 +83,7 @@ export default function LandingPage() {
           </h1>
           <p className="text-blue-200 text-xl mb-10 max-w-2xl mx-auto">
             Pick a topic, choose a template, let AI build your question paper.
-            Download a print-ready PDF in under 2 minutes. CBSE, JEE, NEET formats.
+            Download a print-ready PDF in under 2 minutes. CBSE, ICSE, Maharashtra State Board — grades 8 to 12.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button onClick={() => navigate('/auth')} className="btn-gold text-lg px-8 py-3">
@@ -118,7 +118,7 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              { step: '1', icon: '🧠', title: 'Describe Your Paper', desc: 'Enter subject, topic, board (CBSE/JEE/NEET), difficulty, and number of questions.' },
+              { step: '1', icon: '🧠', title: 'Describe Your Paper', desc: 'Enter subject, topic, board (CBSE/ICSE/Maharashtra), grade (8–12), difficulty, and number of questions.' },
               { step: '2', icon: '✨', title: 'AI Generates Questions', desc: 'Our AI creates MCQs, short answers, and long answers — with accurate answers and marking.' },
               { step: '3', icon: '📄', title: 'Pick Template & Download', desc: 'Choose from 11 professional templates. Download a pixel-perfect PDF instantly.' },
             ].map((s) => (

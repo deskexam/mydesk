@@ -217,7 +217,7 @@ export default function Dashboard() {
                   icon: <Layers className="w-5 h-5" />,
                   color: 'bg-purple-50 text-purple-600',
                   title: '11+ Paper Templates',
-                  desc: 'Choose from CBSE, ICSE, JEE, NEET, Olympiad and coaching institute-ready templates — professionally designed.',
+                  desc: 'Choose from CBSE, ICSE, Maharashtra State Board and Olympiad-ready templates — professionally designed.',
                   action: 'Browse Templates',
                   route: '/templates',
                 },
