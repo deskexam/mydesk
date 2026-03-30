@@ -10,7 +10,7 @@ import re
 
 router = APIRouter(prefix="/api/pdf-tools", tags=["pdf-tools"])
 
-MODEL = "gemini-1.5-flash"
+MODEL = "models/gemini-2.5-flash"
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
