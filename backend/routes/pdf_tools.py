@@ -10,7 +10,7 @@ import re
 
 router = APIRouter(prefix="/api/pdf-tools", tags=["pdf-tools"])
 
-MODEL = "gemini-2.0-flash"
+MODEL = "gemini-1.5-flash"
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -26,15 +26,16 @@ def _extract_pdf_text(file_bytes: bytes) -> str:
 
 
 def _gemini():
-    from google import genai
+    import google.generativeai as genai
     if not settings.gemini_api_key:
-        raise HTTPException(status_code=503, detail="Gemini API key not configured. Add GEMINI_API_KEY to .env")
-    return genai.Client(api_key=settings.gemini_api_key)
+        raise HTTPException(status_code=503, detail="Gemini API key not configured.")
+    genai.configure(api_key=settings.gemini_api_key)
+    return genai.GenerativeModel(MODEL)
 
 
 def _ask(prompt: str) -> str:
-    client = _gemini()
-    response = client.models.generate_content(model=MODEL, contents=prompt)
+    model = _gemini()
+    response = model.generate_content(prompt)
     raw = response.text.strip()
     raw = re.sub(r"^```[a-z]*\n?", "", raw)
     raw = re.sub(r"\n?```$", "", raw)
@@ -42,16 +43,14 @@ def _ask(prompt: str) -> str:
 
 
 def _ask_image(prompt: str, image_bytes: bytes, mime_type: str) -> str:
-    from google import genai
-    from google.genai import types
-    client = _gemini()
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=[
-            types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-            prompt,
-        ],
-    )
+    import google.generativeai as genai
+    from PIL import Image
+    if not settings.gemini_api_key:
+        raise HTTPException(status_code=503, detail="Gemini API key not configured.")
+    genai.configure(api_key=settings.gemini_api_key)
+    model = genai.GenerativeModel(MODEL)
+    img = Image.open(io.BytesIO(image_bytes))
+    response = model.generate_content([prompt, img])
     raw = response.text.strip()
     raw = re.sub(r"^```[a-z]*\n?", "", raw)
     raw = re.sub(r"\n?```$", "", raw)
