@@ -92,7 +92,7 @@ export default function Dashboard() {
                   </span>
                 </button>
                 <button
-                  onClick={() => navigate('/editor')}
+                  onClick={() => navigate('/new-paper')}
                   className="btn-gold flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" /> Create New Paper
@@ -176,7 +176,7 @@ export default function Dashboard() {
             ].map((q, i) => (
               <button
                 key={i}
-                onClick={() => navigate('/editor', { state: { subject: q.subject } })}
+                onClick={() => navigate('/new-paper')}
                 className="bg-white rounded-2xl p-5 border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all text-left template-card"
               >
                 <div className="text-3xl mb-3">{q.icon}</div>
@@ -187,13 +187,13 @@ export default function Dashboard() {
           </div>
 
           {/* PDF Tools Banner */}
-          <div className="bg-gradient-to-r from-saffron to-orange-500 rounded-2xl p-6 mb-8 text-white">
+          <div className="bg-gradient-to-r from-primary-900 to-blue-700 rounded-2xl p-6 mb-8 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-lg mb-1">🔄 PDF Power Tools</h3>
                 <p className="text-orange-100 text-sm">Convert PDFs to editable papers • Photo to LaTeX • PDF to PPT</p>
               </div>
-              <button onClick={() => navigate('/pdf-tools')} className="bg-white text-orange-600 font-bold text-sm px-5 py-2.5 rounded-xl hover:shadow-lg transition-all">
+              <button onClick={() => navigate('/pdf-tools')} className="bg-white text-primary-900 font-bold text-sm px-5 py-2.5 rounded-xl hover:shadow-lg transition-all">
                 Open Tools →
               </button>
             </div>
@@ -211,7 +211,7 @@ export default function Dashboard() {
                   title: 'LaTeX Question Editor',
                   desc: 'Write complex math & chemistry equations with a live A4 preview. Supports MCQ, True/False, and subjective questions.',
                   action: 'Start Writing',
-                  route: '/editor',
+                  route: '/new-paper',
                 },
                 {
                   icon: <Layers className="w-5 h-5" />,
@@ -243,7 +243,7 @@ export default function Dashboard() {
                   title: 'Instant PDF Download',
                   desc: 'Export any paper as a clean, print-ready PDF in one click. Professional A4 layout with proper formatting.',
                   action: 'Create & Download',
-                  route: '/editor',
+                  route: '/new-paper',
                 },
                 // Only show the "Unlimited with Pro" card if user is not subscribed
                 !isPaid && {
@@ -278,7 +278,7 @@ export default function Dashboard() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-serif text-2xl font-bold text-primary-900">My Library</h2>
-              <button onClick={() => navigate('/editor')} className="flex items-center gap-1.5 text-primary-900 text-sm font-semibold hover:underline">
+              <button onClick={() => navigate('/new-paper')} className="flex items-center gap-1.5 text-primary-900 text-sm font-semibold hover:underline">
                 <Plus className="w-4 h-4" /> New Paper
               </button>
             </div>
@@ -301,7 +301,7 @@ export default function Dashboard() {
                 <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-gray-500 font-semibold mb-2">No papers yet</h3>
                 <p className="text-gray-400 text-sm mb-4">Create your first question paper to get started</p>
-                <button onClick={() => navigate('/editor')} className="btn-primary text-sm py-2 px-6">
+                <button onClick={() => navigate('/new-paper')} className="btn-primary text-sm py-2 px-6">
                   Create First Paper
                 </button>
               </div>
