@@ -15,7 +15,7 @@ class Question(BaseModel):
 
 class PaperBase(BaseModel):
     board: Literal["CBSE", "ICSE", "Maharashtra"]
-    grade: Literal["10", "11", "12"]
+    grade: Literal["8", "9", "10", "11", "12"]
     subject: str = Field(min_length=1, max_length=100)
     topics: Optional[List[str]] = Field(default_factory=list, max_length=20)
     total_marks: int = Field(ge=1, le=1000)
