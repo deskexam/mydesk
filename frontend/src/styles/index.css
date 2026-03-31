@@ -27,6 +27,26 @@ body {
   background: var(--bg);
   color: #1a1a2e;
   margin: 0;
+  /* Disable text selection and copy across the app */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Disable drag */
+  -webkit-user-drag: none;
+}
+
+/* Allow selection inside inputs and textareas so users can type normally */
+input, textarea, [contenteditable] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Block print / screenshot via CSS */
+@media print {
+  body { display: none !important; }
 }
 
 /* Scrollbar */

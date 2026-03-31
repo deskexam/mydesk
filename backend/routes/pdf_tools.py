@@ -3,6 +3,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from core.security import get_current_user
 from core.config import settings
+from core.database import get_db
+from core.plan_enforcement import enforce_and_reset, check_download_limit
 import pdfplumber
 import io
 import json
@@ -13,6 +15,17 @@ router = APIRouter(prefix="/api/pdf-tools", tags=["pdf-tools"])
 
 TEXT_MODEL = "llama-3.3-70b-versatile"
 VISION_MODEL = "llama-3.2-11b-vision-preview"
+
+
+# ── Download limit enforcement ─────────────────────────────────────────────────
+
+async def _enforce_download(current_user: dict):
+    """Check download limit and increment counter."""
+    db = get_db()
+    full_user = await db.users.find_one({"_id": current_user["_id"]})
+    full_user = await enforce_and_reset(full_user, db)
+    check_download_limit(full_user)
+    await db.users.update_one({"_id": current_user["_id"]}, {"$inc": {"downloads_used": 1}})
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -122,6 +135,7 @@ async def download_pptx(
     current_user: dict = Depends(get_current_user),
 ):
     """Build and download a .pptx from edited slide JSON."""
+    await _enforce_download(current_user)
     from pptx import Presentation
     from pptx.util import Inches
 
@@ -166,6 +180,7 @@ async def pdf_to_latex(
     current_user: dict = Depends(get_current_user),
 ):
     """Extract text from a PDF and convert to a complete LaTeX document."""
+    await _enforce_download(current_user)
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
 
@@ -192,6 +207,7 @@ async def photo_to_latex(
     current_user: dict = Depends(get_current_user),
 ):
     """Upload a photo of a question paper and get back a LaTeX document."""
+    await _enforce_download(current_user)
     allowed = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
     ext = ("." + file.filename.rsplit(".", 1)[-1].lower()) if "." in file.filename else ""
     if ext not in allowed:

@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { useEffect } from 'react';
 import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
 import Dashboard from './pages/Dashboard';
@@ -13,6 +14,32 @@ import PaperGenerator from './pages/PaperGenerator';
 import AdminPage from './pages/AdminPage';
 import NewPaperPage from './pages/NewPaperPage';
 import './styles/index.css';
+
+function CopyProtection() {
+  useEffect(() => {
+    const blockContext = (e) => e.preventDefault();
+    const blockKeys = (e) => {
+      // Block Ctrl+C, Ctrl+A, Ctrl+S, Ctrl+P, F12, PrtSc
+      if (
+        (e.ctrlKey && ['c', 'a', 's', 'p', 'u'].includes(e.key.toLowerCase())) ||
+        e.key === 'F12' ||
+        e.key === 'PrintScreen'
+      ) {
+        // Allow Ctrl+C inside inputs/textareas
+        const tag = document.activeElement?.tagName?.toLowerCase();
+        if (tag === 'input' || tag === 'textarea') return;
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('contextmenu', blockContext);
+    document.addEventListener('keydown', blockKeys);
+    return () => {
+      document.removeEventListener('contextmenu', blockContext);
+      document.removeEventListener('keydown', blockKeys);
+    };
+  }, []);
+  return null;
+}
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -30,6 +57,7 @@ function App() {
   return (
     <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || ''}>
     <AuthProvider>
+      <CopyProtection />
       <Router>
         <Routes>
           <Route path="/" element={<LandingPage />} />
