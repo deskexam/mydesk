@@ -104,7 +104,17 @@ async def delete_document(doc_id: str, admin: dict = Depends(require_admin)):
 async def get_boards(_: dict = Depends(get_current_user)):
     db = get_db()
     boards = await db.documents.distinct("board")
-    return boards
+    return sorted(boards)
+
+
+@router.get("/meta/grades")
+async def get_grades(board: Optional[str] = None, _: dict = Depends(get_current_user)):
+    db = get_db()
+    query = {}
+    if board:
+        query["board"] = board
+    grades = await db.documents.distinct("grade", query)
+    return sorted(grades, key=lambda x: int(x) if x.isdigit() else x)
 
 
 @router.get("/meta/subjects")
