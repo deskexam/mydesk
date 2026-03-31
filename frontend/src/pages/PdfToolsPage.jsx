@@ -253,13 +253,26 @@ export default function PdfToolsPage() {
     if (!file) return;
     setAiProcessing(true); setPdfError(''); setResult(null); setAiStatus('');
 
+    const steps = [
+      'Reading PDF pages...',
+      'Extracting text content...',
+      'Identifying questions...',
+      'Classifying question types...',
+      'Parsing marks and options...',
+      'Structuring for editor...',
+      'Almost done...',
+    ];
+    let stepIdx = 0;
+    setAiStatus(steps[0]);
+    const interval = setInterval(() => {
+      stepIdx = Math.min(stepIdx + 1, steps.length - 1);
+      setAiStatus(steps[stepIdx]);
+    }, 2500);
+
     try {
-      setAiStatus('Uploading file to backend...');
-      
-      // Import the API function
       const { extractPdfWithGemini } = await import('../lib/api');
-      
       const response = await extractPdfWithGemini(file);
+      clearInterval(interval);
       
       if (response.error) {
         throw new Error(response.error.message);
@@ -289,6 +302,7 @@ export default function PdfToolsPage() {
         isAiResult: true,
       });
     } catch (err) {
+      clearInterval(interval);
       console.error('Backend extraction error:', err);
       setPdfError(`AI extraction failed: ${err.message}`);
     }
@@ -637,16 +651,34 @@ export default function PdfToolsPage() {
               )}
 
               {(processing || aiProcessing) && (
-                <div className="border-2 border-blue-200 rounded-2xl h-64 flex flex-col items-center justify-center gap-4 bg-blue-50">
-                  <Loader2 className="w-10 h-10 text-primary-900 animate-spin" />
+                <div className="border-2 border-purple-200 rounded-2xl py-10 px-6 flex flex-col items-center justify-center gap-6 bg-gradient-to-br from-purple-50 to-blue-50">
+                  {/* Animated orbs */}
+                  <div className="relative w-20 h-20 flex items-center justify-center">
+                    <div className="absolute w-20 h-20 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin"></div>
+                    <div className="absolute w-12 h-12 rounded-full border-4 border-blue-200 border-b-blue-500 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
+                    <span className="text-2xl">🤖</span>
+                  </div>
+
                   <div className="text-center">
-                    <p className="font-semibold text-primary-900">
-                      {aiProcessing ? '🤖 AI Extracting…' : 'Reading PDF…'}
+                    <p className="font-bold text-primary-900 text-lg mb-1">
+                      {aiProcessing ? 'AI is Building Your Paper' : 'Reading PDF…'}
                     </p>
-                    <p className="text-gray-500 text-sm mt-1">
-                      {aiProcessing ? (aiStatus || 'Gemini AI is reading the content') : 'Extracting text from all pages'}
+                    <p className="text-purple-600 text-sm font-medium animate-pulse">
+                      {aiProcessing ? (aiStatus || 'Gemini AI is reading the content...') : 'Extracting text from all pages'}
                     </p>
                   </div>
+
+                  {/* Progress dots */}
+                  {aiProcessing && (
+                    <div className="flex gap-2">
+                      {[0,1,2,3,4,5,6].map(i => (
+                        <div key={i} className="w-2 h-2 rounded-full bg-purple-400 animate-bounce"
+                          style={{ animationDelay: `${i * 0.15}s` }}></div>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="text-gray-400 text-xs">This may take 15–30 seconds for large PDFs</p>
                 </div>
               )}
 

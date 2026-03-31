@@ -209,6 +209,7 @@ async def pdf_to_editor(
     current_user: dict = Depends(get_current_user),
 ):
     """Extract questions from a PDF as structured JSON for the editor."""
+    import asyncio
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted")
 
@@ -224,9 +225,10 @@ async def pdf_to_editor(
         '   "options": ["A. ...", "B. ...", "C. ...", "D. ..."]  (MCQ only),\n'
         '   "marks": number}\n'
         "Return ONLY valid JSON, no markdown fences.\n\n"
-        f"TEXT:\n{raw_text[:10000]}"
+        f"TEXT:\n{raw_text[:6000]}"
     )
-    raw = _ask(prompt)
+    loop = asyncio.get_event_loop()
+    raw = await loop.run_in_executor(None, _ask, prompt)
     try:
         questions = json.loads(raw)
     except json.JSONDecodeError:
