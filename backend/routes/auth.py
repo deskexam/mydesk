@@ -37,6 +37,8 @@ class ResendVerificationRequest(BaseModel):
 
 def format_user(user: dict) -> dict:
     """Return a consistent user dict for API responses."""
+    from core.plan_enforcement import get_usage_stats
+    stats = get_usage_stats(user)
     return {
         "id": str(user["_id"]),
         "full_name": user.get("full_name", user.get("name", "")),
@@ -53,6 +55,16 @@ def format_user(user: dict) -> dict:
             if isinstance(user.get("created_at"), datetime) else str(user.get("created_at", "")),
         "updated_at": user["updated_at"].isoformat()
             if isinstance(user.get("updated_at"), datetime) else str(user.get("updated_at", "")),
+        # Plan enforcement stats
+        "plan": stats["plan"],
+        "trial_active": stats["trial_active"],
+        "papers_used": stats["papers_used"],
+        "papers_limit": stats["papers_limit"],
+        "papers_remaining": stats["papers_remaining"],
+        "downloads_used": stats["downloads_used"],
+        "downloads_limit": stats["downloads_limit"],
+        "downloads_remaining": stats["downloads_remaining"],
+        "show_upgrade_banner": stats["show_upgrade_banner"],
     }
 
 

@@ -48,6 +48,11 @@ export function AuthProvider({ children }) {
 
   const canDownload = () => {
     if (!profile) return false;
+    // Use new plan system if available
+    if (typeof profile.downloads_remaining === 'number') {
+      return profile.downloads_remaining > 0;
+    }
+    // Legacy fallback
     if (['monthly', 'yearly'].includes(profile.subscription_status)) {
       return new Date(profile.subscription_end) > new Date();
     }

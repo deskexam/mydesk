@@ -178,10 +178,19 @@ export default function PdfToolsPage() {
 
   const downloadPptx = async () => {
     if (!editableSlides) return;
+    if (!canDownload()) { setShowPaywall(true); return; }
     setPptxDownloading(true);
     const { downloadPptxFromSlides } = await import('../lib/api');
     const { error } = await downloadPptxFromSlides(editPptTitle, editSubject, editableSlides);
-    if (error) setPdfError(`Download failed: ${error.message}`);
+    if (error) {
+      if (error.status === 402 || error.message?.includes('402')) {
+        setShowPaywall(true);
+      } else {
+        setPdfError(`Download failed: ${error.message}`);
+      }
+    } else {
+      refreshProfile();
+    }
     setPptxDownloading(false);
   };
 
@@ -910,16 +919,13 @@ export default function PdfToolsPage() {
           onDownload={async (doDownload) => {
             if (!canDownload()) { setShowPaywall(true); return; }
             doDownload();
-            if (!isSubscribed) {
-              await decrementCredit();
-              refreshProfile();
-            }
+            refreshProfile();
           }}
         />
       )}
 
       {showPaywall && (
-        <PaywallModal onClose={() => setShowPaywall(false)} />
+        <PaywallModal reason="downloads" onClose={() => setShowPaywall(false)} />
       )}
     </div>
   );

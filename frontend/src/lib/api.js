@@ -28,6 +28,12 @@ function normalizeUser(user) {
     subscriptionStatus: user.subscription_status ?? 'free',
     subscriptionEnd: user.subscription_end ?? null,
     totalPapersCreated: user.total_papers_created ?? 0,
+    // Plan enforcement fields
+    plan: user.plan ?? 'free',
+    downloads_remaining: user.downloads_remaining ?? null,
+    papers_remaining: user.papers_remaining ?? null,
+    downloads_used: user.downloads_used ?? 0,
+    papers_used: user.papers_used ?? 0,
   };
 }
 
