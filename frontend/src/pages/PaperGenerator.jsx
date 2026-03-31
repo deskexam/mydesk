@@ -506,7 +506,7 @@ export default function PaperGenerator() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {topicList.map((topic) => {
+                    {availableTopics.map((topic) => {
                       const active = selectedTopics.includes(topic);
                       return (
                         <button
