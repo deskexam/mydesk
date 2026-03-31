@@ -96,11 +96,17 @@ export default function PdfPreview({ paperData }) {
             </div>
           )}
 
-          {q.type === 'Subjective' && (
+          {(q.type === 'Subjective' || q.type === 'short_answer' || q.type === 'long_answer') && !q.answer && (
             <div style={{ marginTop: 8, height: Math.max(40, (q.marks || 2) * 12) }}>
               {[...Array(Math.max(3, Math.floor((q.marks || 2) * 1.5)))].map((_, li) => (
                 <div key={li} style={{ borderBottom: '1px dashed #e5e5e5', height: 24 }} />
               ))}
+            </div>
+          )}
+
+          {q.answer && (
+            <div style={{ marginTop: 6, padding: '4px 8px', background: '#f0fdf4', borderLeft: '3px solid #16a34a', borderRadius: 3, fontSize: 11, color: '#15803d' }}>
+              <strong>Ans:</strong> <span dangerouslySetInnerHTML={{ __html: renderLatex(q.answer) }} />
             </div>
           )}
 
@@ -151,7 +157,7 @@ export default function PdfPreview({ paperData }) {
         </div>
       ) : (
         <div>
-          {['MCQ', 'True/False', 'Subjective'].map(type => {
+          {['MCQ', 'True/False', 'Subjective', 'short_answer', 'long_answer'].map(type => {
             const sectionQs = questions.filter(q => q.type === type);
             if (sectionQs.length === 0) return null;
             return (
