@@ -50,7 +50,7 @@ def _build_mcq_batch_prompt(
     context_chunks: List[str], include_answer_key: bool,
     start_num: int = 1, used_questions: Optional[List[dict]] = None,
 ) -> str:
-    context = "\n\n---\n\n".join(context_chunks) if context_chunks else "Use your knowledge of the syllabus."
+    context = "\n\n---\n\n".join(c[:400] for c in context_chunks) if context_chunks else "Use your knowledge of the syllabus."
     topics_str = ", ".join(topics) if topics else "all topics in the syllabus"
 
     avoid_note = ""
@@ -107,7 +107,7 @@ def build_prompt(
     difficulty: str, context_chunks: List[str], include_answer_key: bool,
     counts: Dict[str, int], per_q_marks: Dict[str, int],
 ) -> str:
-    context = "\n\n---\n\n".join(context_chunks) if context_chunks else "Use your knowledge of the syllabus."
+    context = "\n\n---\n\n".join(c[:400] for c in context_chunks) if context_chunks else "Use your knowledge of the syllabus."
     topics_str = ", ".join(topics) if topics else "all topics in the syllabus"
 
     label_map = {"MCQ": "MCQ", "short_answer": "short answer", "long_answer": "long answer"}
@@ -353,7 +353,7 @@ def generate_paper(
     per_q_marks = {"MCQ": marks_per_mcq, "short_answer": marks_per_short, "long_answer": marks_per_long}
 
     query = f"{subject} {' '.join(topics or [])} {board} grade {grade} exam questions"
-    chunks = retrieve_chunks(query, board, grade, subject, topics, n_results=15)
+    chunks = retrieve_chunks(query, board, grade, subject, topics, n_results=6)
 
     explicit = any(x is not None for x in [num_mcq, num_short, num_long])
     if explicit:
