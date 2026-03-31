@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { generateAndSavePaper } from '../lib/api';
+import { generateAndSavePaper, fastapiClient } from '../lib/api';
 import toast from 'react-hot-toast';
 import { Sparkles, FileText, Download, Edit, BookOpen, Lock } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -262,10 +262,17 @@ export default function PaperGenerator() {
   const isFree = !profile?.plan || profile?.plan === 'free';
   const [selectedTopics, setSelectedTopics] = useState([]);
 
+  // Dynamic data from DB
+  const [availableBoards, setAvailableBoards] = useState([]);
+  const [availableGrades, setAvailableGrades] = useState([]);
+  const [availableSubjects, setAvailableSubjects] = useState([]);
+  const [availableTopics, setAvailableTopics] = useState([]);
+  const [dbLoading, setDbLoading] = useState(true);
+
   const [form, setForm] = useState({
-    board: "CBSE",
-    grade: "10",
-    subject: "Mathematics",
+    board: "",
+    grade: "",
+    subject: "",
     total_marks: 80,
     duration_minutes: 180,
     difficulty: "medium",
@@ -278,21 +285,44 @@ export default function PaperGenerator() {
     marks_per_long: 5,
   });
 
-  const subjects = SUBJECTS_BY_GRADE[form.grade]?.[form.board] || [];
-  const topicList = TOPICS_BY_GRADE_SUBJECT[form.grade]?.[form.subject] || [];
   const allSelected = selectedTopics.length === 0;
 
-  // Reset subject + topics when grade or board changes
+  // Load boards on mount
   useEffect(() => {
-    const list = SUBJECTS_BY_GRADE[form.grade]?.[form.board] || [];
-    setForm(f => ({ ...f, subject: list[0] || '' }));
-    setSelectedTopics([]);
-  }, [form.grade, form.board]); // eslint-disable-line react-hooks/exhaustive-deps
+    fastapiClient.get('/api/documents/meta/boards').then(res => {
+      setAvailableBoards(res.data);
+      if (res.data.length > 0) setForm(f => ({ ...f, board: res.data[0] }));
+    }).catch(() => {}).finally(() => setDbLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset topics when subject changes
+  // Load grades when board changes
   useEffect(() => {
-    setSelectedTopics([]);
-  }, [form.subject]);
+    if (!form.board) return;
+    fastapiClient.get(`/api/documents/meta/grades?board=${form.board}`).then(res => {
+      setAvailableGrades(res.data);
+      setForm(f => ({ ...f, grade: res.data[0] || '', subject: '' }));
+      setSelectedTopics([]);
+    }).catch(() => {});
+  }, [form.board]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load subjects when board or grade changes
+  useEffect(() => {
+    if (!form.board || !form.grade) return;
+    fastapiClient.get(`/api/documents/meta/subjects?board=${form.board}&grade=${form.grade}`).then(res => {
+      setAvailableSubjects(res.data);
+      setForm(f => ({ ...f, subject: res.data[0] || '' }));
+      setSelectedTopics([]);
+    }).catch(() => {});
+  }, [form.board, form.grade]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load topics when subject changes
+  useEffect(() => {
+    if (!form.board || !form.grade || !form.subject) return;
+    fastapiClient.get(`/api/documents/meta/topics?board=${form.board}&grade=${form.grade}&subject=${encodeURIComponent(form.subject)}`).then(res => {
+      setAvailableTopics(res.data);
+      setSelectedTopics([]);
+    }).catch(() => {});
+  }, [form.subject]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleTopic = (topic) => {
     setSelectedTopics(prev =>
@@ -331,7 +361,7 @@ export default function PaperGenerator() {
       : "Generating paper with AI... This may take 15–30 seconds.";
 
     // Topics: if none selected → pass full topic list; if specific → pass those
-    const topicsPayload = selectedTopics.length > 0 ? selectedTopics : (topicList.length > 0 ? topicList : null);
+    const topicsPayload = selectedTopics.length > 0 ? selectedTopics : (availableTopics.length > 0 ? availableTopics : null);
 
     setLoading(true);
     const toastId = toast.loading(loadingMsg);
@@ -382,6 +412,18 @@ export default function PaperGenerator() {
 
           {/* Main Form */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+            {dbLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-4 text-gray-400">
+                <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                <p className="text-sm">Loading available content...</p>
+              </div>
+            ) : availableBoards.length === 0 ? (
+              <div className="text-center py-16 text-gray-400">
+                <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                <p className="font-semibold text-gray-500 mb-2">No content uploaded yet</p>
+                <p className="text-sm">Admin needs to upload PDFs before AI generation is available.</p>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
 
               {/* Board, Grade & Subject */}
@@ -393,7 +435,7 @@ export default function PaperGenerator() {
                     value={form.board}
                     onChange={(e) => setForm({ ...form, board: e.target.value })}
                   >
-                    {BOARDS.map((b) => <option key={b} value={b}>{b}</option>)}
+                    {availableBoards.map((b) => <option key={b} value={b}>{b}</option>)}
                   </select>
                 </div>
                 <div>
@@ -410,16 +452,16 @@ export default function PaperGenerator() {
                       setForm({ ...form, grade: g });
                     }}
                   >
-                    {GRADES.map((g) => (
+                    {availableGrades.map((g) => (
                       <option key={g} value={g} disabled={isFree && (g === '11' || g === '12')}>
-                        {g}{isFree && (g === '11' || g === '12') ? ' 🔒' : ''}
+                        Grade {g}{isFree && (g === '11' || g === '12') ? ' 🔒' : ''}
                       </option>
                     ))}
                   </select>
                   {isFree && (
                     <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                      <Lock className="w-3 h-3" /> Grade 11 & 12 require Basic plan or higher.{' '}
-                      <button onClick={() => navigate('/payment')} className="underline font-semibold">Upgrade</button>
+                      <Lock className="w-3 h-3" /> Grade 11 & 12 require Basic plan.{' '}
+                      <button type="button" onClick={() => navigate('/payment')} className="underline font-semibold">Upgrade</button>
                     </p>
                   )}
                 </div>
@@ -431,13 +473,13 @@ export default function PaperGenerator() {
                     onChange={(e) => setForm({ ...form, subject: e.target.value })}
                     required
                   >
-                    {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
+                    {availableSubjects.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>
 
               {/* Topics / Units */}
-              {topicList.length > 0 && (
+              {availableTopics.length > 0 && (
                 <div className="bg-gray-50 rounded-xl p-5">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -630,6 +672,7 @@ export default function PaperGenerator() {
                 </div>
               </button>
             </form>
+            )}
           </div>
 
           {/* Feature cards */}
