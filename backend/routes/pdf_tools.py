@@ -7,10 +7,12 @@ import pdfplumber
 import io
 import json
 import re
+import base64
 
 router = APIRouter(prefix="/api/pdf-tools", tags=["pdf-tools"])
 
-MODEL = "models/gemini-2.5-flash"
+TEXT_MODEL = "llama-3.3-70b-versatile"
+VISION_MODEL = "llama-3.2-11b-vision-preview"
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -25,33 +27,41 @@ def _extract_pdf_text(file_bytes: bytes) -> str:
     return "\n\n".join(text_pages)
 
 
-def _gemini():
-    import google.generativeai as genai
-    if not settings.gemini_api_key:
-        raise HTTPException(status_code=503, detail="Gemini API key not configured.")
-    genai.configure(api_key=settings.gemini_api_key)
-    return genai.GenerativeModel(MODEL)
+def _groq_client():
+    from groq import Groq
+    if not settings.groq_api_key:
+        raise HTTPException(status_code=503, detail="Groq API key not configured.")
+    return Groq(api_key=settings.groq_api_key)
 
 
 def _ask(prompt: str) -> str:
-    model = _gemini()
-    response = model.generate_content(prompt)
-    raw = response.text.strip()
+    client = _groq_client()
+    response = client.chat.completions.create(
+        model=TEXT_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=4096,
+    )
+    raw = (response.choices[0].message.content or "").strip()
     raw = re.sub(r"^```[a-z]*\n?", "", raw)
     raw = re.sub(r"\n?```$", "", raw)
     return raw
 
 
 def _ask_image(prompt: str, image_bytes: bytes, mime_type: str) -> str:
-    import google.generativeai as genai
-    from PIL import Image
-    if not settings.gemini_api_key:
-        raise HTTPException(status_code=503, detail="Gemini API key not configured.")
-    genai.configure(api_key=settings.gemini_api_key)
-    model = genai.GenerativeModel(MODEL)
-    img = Image.open(io.BytesIO(image_bytes))
-    response = model.generate_content([prompt, img])
-    raw = response.text.strip()
+    client = _groq_client()
+    b64 = base64.b64encode(image_bytes).decode("utf-8")
+    response = client.chat.completions.create(
+        model=VISION_MODEL,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}},
+            ],
+        }],
+        max_tokens=4096,
+    )
+    raw = (response.choices[0].message.content or "").strip()
     raw = re.sub(r"^```[a-z]*\n?", "", raw)
     raw = re.sub(r"\n?```$", "", raw)
     return raw
@@ -80,7 +90,7 @@ async def pdf_to_ppt(
         '  "slides": array of {"title": string, "bullets": [string, ...]}\n'
         "One slide per question/section. Max 5 bullets per slide.\n"
         "Return ONLY valid JSON, no markdown fences.\n\n"
-        f"TEXT:\n{raw_text[:8000]}"
+        f"TEXT:\n{raw_text[:6000]}"
     )
     raw = _ask(prompt)
     try:
@@ -168,7 +178,7 @@ async def pdf_to_latex(
         r"Use \documentclass{article}, section headers, enumerate for questions, "
         r"and $...$ or \[...\] for math." "\n"
         "Return ONLY the LaTeX source, no explanation.\n\n"
-        f"TEXT:\n{raw_text[:10000]}"
+        f"TEXT:\n{raw_text[:8000]}"
     )
     latex = _ask(prompt)
     return {"latex": latex, "char_count": len(latex)}
