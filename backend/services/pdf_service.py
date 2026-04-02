@@ -41,7 +41,7 @@ def extract_text_chunks(filename: str, chunk_size: int = 800, overlap: int = 100
             pass
         raise HTTPException(
             status_code=422,
-            detail="This PDF could not be read. It may be corrupted or in an unsupported format. Please try a different PDF file."
+            detail="This PDF is not supported here. Please upload a text-based PDF (e.g. textbook chapters or curriculum documents)."
         )
 
     if not full_text.strip():
@@ -51,7 +51,7 @@ def extract_text_chunks(filename: str, chunk_size: int = 800, overlap: int = 100
             pass
         raise HTTPException(
             status_code=422,
-            detail="No readable text was found in this PDF. Please upload a PDF that contains selectable text (not a scanned image)."
+            detail="This PDF is not supported here — no readable text was found. Only text-based PDFs are accepted, not scanned images or generated papers."
         )
 
     words = full_text.split()
