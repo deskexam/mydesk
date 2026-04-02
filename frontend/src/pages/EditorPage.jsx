@@ -450,6 +450,7 @@ export default function EditorPage() {
 
   const [showPreview, setShowPreview] = useState(true);
   const [showAnswers, setShowAnswers] = useState(false);
+  const [showAnswerReview, setShowAnswerReview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
@@ -822,6 +823,24 @@ export default function EditorPage() {
               </>
             )}
           </button>
+          {paperData.questions?.some(q => q.answer) && (
+            <button
+              onClick={() => setShowAnswerReview(true)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg transition-all ${
+                paperData.questions.some(q => q.answer && q.answer_verified === false)
+                  ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
+                  : 'text-gray-600 border-gray-200 hover:bg-gray-50'
+              }`}
+              title="Review and edit AI-generated answers"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {paperData.questions.some(q => q.answer && q.answer_verified === false)
+                ? `Review Answers (${paperData.questions.filter(q => q.answer && q.answer_verified === false).length} flagged)`
+                : 'Review Answers'}
+            </button>
+          )}
           <button
             onClick={handleSave}
             disabled={saving}
@@ -1028,6 +1047,105 @@ export default function EditorPage() {
 
       {showPaywall    && <PaywallModal onClose={() => setShowPaywall(false)} />}
       {showLatexModal && <LatexFormatModal paperData={paperData} onClose={() => setShowLatexModal(false)} />}
+
+      {showAnswerReview && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <div>
+                <h2 className="font-semibold text-primary-900 text-lg">Review Answers</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {paperData.questions.filter(q => q.answer && q.answer_verified === false).length > 0
+                    ? `${paperData.questions.filter(q => q.answer && q.answer_verified === false).length} answers flagged for review — edit if incorrect`
+                    : 'All answers verified by AI — review and edit if needed'}
+                </p>
+              </div>
+              <button onClick={() => setShowAnswerReview(false)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Answer list */}
+            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
+              {paperData.questions.filter(q => q.answer).map((q, idx) => {
+                const globalIdx = paperData.questions.indexOf(q);
+                const flagged = q.answer_verified === false;
+                return (
+                  <div key={idx} className={`rounded-xl border p-4 ${flagged ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className="flex items-start gap-2 mb-2">
+                      {flagged ? (
+                        <span className="text-xs font-bold px-2 py-0.5 bg-amber-200 text-amber-800 rounded-full flex-shrink-0">⚠ Needs Review</span>
+                      ) : (
+                        <span className="text-xs font-bold px-2 py-0.5 bg-green-100 text-green-700 rounded-full flex-shrink-0">✓ Verified</span>
+                      )}
+                      <span className="text-xs text-gray-500">{q.type} · {q.marks} mark{q.marks !== 1 ? 's' : ''}</span>
+                    </div>
+                    <p className="text-sm text-gray-800 font-medium mb-3">Q{globalIdx + 1}. {q.question}</p>
+                    {q.options && (
+                      <div className="grid grid-cols-2 gap-1 mb-3">
+                        {q.options.map((opt, oi) => (
+                          <div key={oi} className={`text-xs px-2 py-1 rounded ${q.answer === opt || q.answer?.startsWith(String.fromCharCode(65+oi)) ? 'bg-green-100 text-green-800 font-semibold' : 'bg-white text-gray-600 border border-gray-200'}`}>
+                            {opt}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500 flex-shrink-0">Answer:</span>
+                      <input
+                        className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                        value={q.answer || ''}
+                        onChange={e => {
+                          const updated = [...paperData.questions];
+                          updated[globalIdx] = { ...updated[globalIdx], answer: e.target.value, answer_verified: true };
+                          setPaperData(prev => ({ ...prev, questions: updated }));
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const updated = [...paperData.questions];
+                          updated[globalIdx] = { ...updated[globalIdx], answer_verified: true };
+                          setPaperData(prev => ({ ...prev, questions: updated }));
+                        }}
+                        className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                          q.answer_verified === true ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-green-100 hover:text-green-700'
+                        }`}
+                      >
+                        {q.answer_verified === true ? '✓ Approved' : 'Approve'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+              <span className="text-xs text-gray-500">
+                {paperData.questions.filter(q => q.answer && q.answer_verified === true).length} / {paperData.questions.filter(q => q.answer).length} approved
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const updated = paperData.questions.map(q => q.answer ? { ...q, answer_verified: true } : q);
+                    setPaperData(prev => ({ ...prev, questions: updated }));
+                  }}
+                  className="text-sm px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Approve All
+                </button>
+                <button
+                  onClick={() => { handleSave(); setShowAnswerReview(false); }}
+                  className="text-sm px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-blue-800"
+                >
+                  Save & Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

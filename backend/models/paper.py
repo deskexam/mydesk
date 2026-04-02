@@ -10,6 +10,7 @@ class Question(BaseModel):
     question: str
     options: Optional[List[str]] = None  # for MCQ
     answer: Optional[str] = None
+    answer_verified: Optional[bool] = None  # None = no answer, True = AI-verified, False = needs review
     marks: int = Field(ge=0, le=100)
     topic: Optional[str] = ""
 

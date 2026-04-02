@@ -457,6 +457,16 @@ def verify_and_clean_paper(paper: dict, model: str) -> dict:
                 "topic": q.get("topic", ""),
             })
 
+    has_answers = any(q.get("answer") for q in flat)
+    answer_instructions = """
+7. For every question that has an "answer" field:
+   - Verify the answer is FACTUALLY CORRECT for the given question.
+   - For MCQ: confirm the answer matches one of the options and is actually correct.
+   - If the answer is correct and you are confident, set "answer_verified": true.
+   - If the answer is wrong or you are unsure, CORRECT it and set "answer_verified": false.
+   - Never leave a wrong answer — fix it or remove the answer field.
+""" if has_answers else ""
+
     prompt = f"""You are a strict exam quality-control reviewer for a {paper.get('board', '')} Board, Grade {paper.get('grade', '')}, {paper.get('subject', '')} paper.
 
 Below is a list of generated exam questions (JSON array). Your job is to:
@@ -466,8 +476,8 @@ Below is a list of generated exam questions (JSON array). Your job is to:
 4. REMOVE any question where the correct answer is not among the options (for MCQ).
 5. REMOVE any off-topic, inappropriate, or factually incorrect questions.
 6. Keep all valid questions unchanged — do not rephrase or alter them.
-
-Return ONLY a valid JSON array of the cleaned questions (same structure as input). No markdown, no explanation.
+{answer_instructions}
+Return ONLY a valid JSON array of the cleaned questions (same structure as input, with "answer_verified" field added where answers exist). No markdown, no explanation.
 
 QUESTIONS:
 {json.dumps(flat, indent=2)[:12000]}"""
@@ -521,6 +531,7 @@ def flatten_questions(paper_data: dict) -> List[dict]:
                 "question": q.get("question", ""),
                 "options": q.get("options"),
                 "answer": q.get("answer"),
+                "answer_verified": q.get("answer_verified"),
                 "marks": q.get("marks", 1),
                 "topic": q.get("topic", ""),
                 "section": section.get("section_name", ""),
