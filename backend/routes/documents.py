@@ -89,6 +89,63 @@ async def list_documents(
     return docs
 
 
+@router.put("/{doc_id}", status_code=200)
+async def update_document(
+    doc_id: str,
+    board: str = Form(...),
+    grade: str = Form(...),
+    subject: str = Form(...),
+    topics: str = Form(...),
+    title: str = Form(...),
+    file: Optional[UploadFile] = File(None),  # optional — if provided, replace the PDF
+    admin: dict = Depends(require_admin),
+):
+    db = get_db()
+    existing = await db.documents.find_one({"_id": ObjectId(doc_id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    topics_list: List[str] = json.loads(topics)
+    loop = asyncio.get_event_loop()
+    update = {
+        "board": board, "grade": grade, "subject": subject,
+        "topics": topics_list, "title": title,
+        "updated_at": datetime.utcnow(),
+    }
+
+    if file and file.filename:
+        if not file.filename.lower().endswith(".pdf"):
+            raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+        file_bytes = await file.read()
+        filename = await save_upload(file_bytes, file.filename)
+        chunks = await loop.run_in_executor(None, extract_text_chunks, filename)
+        if not chunks:
+            raise HTTPException(status_code=422, detail="Could not extract text from PDF")
+        # Remove old chunks from vector store and re-index
+        delete_doc_chunks(doc_id)
+        await loop.run_in_executor(None, partial(
+            index_chunks,
+            doc_id=doc_id,
+            chunks=chunks,
+            metadata={"board": board, "grade": grade, "subject": subject, "topics": topics_list, "title": title},
+        ))
+        update["filename"] = filename
+        update["chunk_count"] = len(chunks)
+    else:
+        # No new file — just re-index metadata update in vector store
+        delete_doc_chunks(doc_id)
+        existing_chunks = await loop.run_in_executor(None, extract_text_chunks, existing["filename"])
+        await loop.run_in_executor(None, partial(
+            index_chunks,
+            doc_id=doc_id,
+            chunks=existing_chunks,
+            metadata={"board": board, "grade": grade, "subject": subject, "topics": topics_list, "title": title},
+        ))
+
+    await db.documents.update_one({"_id": ObjectId(doc_id)}, {"$set": update})
+    return {"message": "Document updated successfully"}
+
+
 @router.delete("/{doc_id}", status_code=204)
 async def delete_document(doc_id: str, admin: dict = Depends(require_admin)):
     db = get_db()

@@ -34,15 +34,14 @@ def extract_text_chunks(filename: str, chunk_size: int = 800, overlap: int = 100
                 text = page.extract_text()
                 if text:
                     full_text += text + "\n"
-    except Exception as e:
-        # Delete the bad file so it doesn't linger
+    except Exception:
         try:
             os.remove(path)
         except OSError:
             pass
         raise HTTPException(
             status_code=422,
-            detail="The uploaded file is not a valid PDF or is corrupted. Please upload a proper PDF file."
+            detail="This PDF could not be read. It may be corrupted or in an unsupported format. Please try a different PDF file."
         )
 
     if not full_text.strip():
@@ -52,7 +51,7 @@ def extract_text_chunks(filename: str, chunk_size: int = 800, overlap: int = 100
             pass
         raise HTTPException(
             status_code=422,
-            detail="No readable text found in this PDF. It may be a scanned image-only PDF. Please upload a text-based PDF."
+            detail="No readable text was found in this PDF. Please upload a PDF that contains selectable text (not a scanned image)."
         )
 
     words = full_text.split()

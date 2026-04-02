@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Trash2, FileText, BookOpen, Tag, Layers, Loader2, CheckCircle, AlertCircle, ShieldAlert, X } from 'lucide-react';
+import { Upload, Trash2, FileText, BookOpen, Tag, Layers, Loader2, CheckCircle, AlertCircle, ShieldAlert, X, Pencil } from 'lucide-react';
 import Navbar from '../components/auth/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { fastapiClient } from '../lib/api';
@@ -278,7 +278,13 @@ export default function AdminPage() {
   const [loading,   setLoading]   = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deleting,  setDeleting]  = useState(null);
+  const [editDoc,   setEditDoc]   = useState(null); // doc being edited
+  const [editForm,  setEditForm]  = useState({});
+  const [editTopics, setEditTopics] = useState([]);
+  const [editFile,  setEditFile]  = useState(null);
+  const [updating,  setUpdating]  = useState(false);
   const fileRef = useRef(null);
+  const editFileRef = useRef(null);
 
   const [form, setForm] = useState({
     board: 'CBSE', grade: '10', subject: 'Mathematics', title: '', file: null,
@@ -366,6 +372,37 @@ export default function AdminPage() {
       setDocs(prev => prev.filter(d => d.id !== id));
     } catch { toast.error('Delete failed'); }
     setDeleting(null);
+  };
+
+  const openEdit = (doc) => {
+    setEditDoc(doc);
+    setEditForm({ board: doc.board, grade: doc.grade, subject: doc.subject, title: doc.title });
+    setEditTopics(doc.topics || []);
+    setEditFile(null);
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setUpdating(true);
+    try {
+      const fd = new FormData();
+      fd.append('board',   editForm.board);
+      fd.append('grade',   editForm.grade);
+      fd.append('subject', editForm.subject);
+      fd.append('title',   editForm.title);
+      fd.append('topics',  JSON.stringify(editTopics));
+      if (editFile) fd.append('file', editFile);
+      await fastapiClient.put(`/api/documents/${editDoc.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success('Document updated');
+      setDocs(prev => prev.map(d => d.id === editDoc.id
+        ? { ...d, ...editForm, topics: editTopics, ...(editFile ? {} : {}) }
+        : d
+      ));
+      setEditDoc(null);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Update failed');
+    }
+    setUpdating(false);
   };
 
   if (profile && profile.role !== 'admin') return null;
@@ -605,16 +642,25 @@ export default function AdminPage() {
                           </div>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleDelete(doc.id, doc.title)}
-                        disabled={deleting === doc.id}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0"
-                        title="Delete document"
-                      >
-                        {deleting === doc.id
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : <Trash2 className="w-4 h-4" />}
-                      </button>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => openEdit(doc)}
+                          className="p-2 text-gray-400 hover:text-primary-900 hover:bg-blue-50 rounded-lg"
+                          title="Edit document"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(doc.id, doc.title)}
+                          disabled={deleting === doc.id}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                          title="Delete document"
+                        >
+                          {deleting === doc.id
+                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                            : <Trash2 className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -624,6 +670,94 @@ export default function AdminPage() {
 
         </div>
       </div>
+
+      {/* ── Edit Document Modal ── */}
+      {editDoc && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h2 className="font-semibold text-primary-900">Edit Document</h2>
+              <button onClick={() => setEditDoc(null)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdate} className="px-6 py-4 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">Title</label>
+                <input
+                  value={editForm.title}
+                  onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-900"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Board</label>
+                  <select value={editForm.board} onChange={e => setEditForm(f => ({ ...f, board: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-900">
+                    {BOARDS.map(b => <option key={b}>{b}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Grade</label>
+                  <select value={editForm.grade} onChange={e => setEditForm(f => ({ ...f, grade: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-900">
+                    {GRADES.map(g => <option key={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Subject</label>
+                  <input
+                    value={editForm.subject}
+                    onChange={e => setEditForm(f => ({ ...f, subject: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-900"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">Topics (comma separated)</label>
+                <input
+                  value={editTopics.join(', ')}
+                  onChange={e => setEditTopics(e.target.value.split(',').map(t => t.trim()).filter(Boolean))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-900"
+                  placeholder="e.g. Algebra, Geometry, Trigonometry"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 mb-1 block">Replace PDF (optional)</label>
+                <input
+                  ref={editFileRef}
+                  type="file"
+                  accept=".pdf"
+                  onChange={e => setEditFile(e.target.files[0] || null)}
+                  className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary-900 file:text-white file:text-xs file:font-semibold hover:file:bg-blue-800 cursor-pointer"
+                />
+                {editFile && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" /> {editFile.name} — will replace existing PDF
+                  </p>
+                )}
+                {!editFile && (
+                  <p className="text-xs text-gray-400 mt-1">Leave empty to keep the existing PDF</p>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditDoc(null)}
+                  className="px-4 py-2 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button type="submit" disabled={updating}
+                  className="px-4 py-2 text-sm bg-primary-900 text-white rounded-lg hover:bg-blue-800 flex items-center gap-2 disabled:opacity-60">
+                  {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                  {updating ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
