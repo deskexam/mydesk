@@ -641,7 +641,7 @@ export default function EditorPage() {
   };
 
   // ── Download — clones PdfPreview off-screen so live preview is NEVER mutated ──
-  const handleDownload = async () => {
+  const handleDownload = async (withAnswers = false) => {
     if (!canDownload()) { setShowPaywall(true); return; }
     setDownloading(true);
     try {
@@ -667,7 +667,7 @@ export default function EditorPage() {
       const { createRoot } = await import('react-dom/client');
       const tmpRoot = createRoot(offscreen);
       await new Promise(resolve => {
-        tmpRoot.render(<PdfPreview paperData={paperData} />);
+        tmpRoot.render(<PdfPreview paperData={paperData} showAnswers={withAnswers} />);
         requestAnimationFrame(() => requestAnimationFrame(resolve));
       });
 
@@ -761,7 +761,8 @@ export default function EditorPage() {
         pdf.text(paperData.metadata?.subject || '', pageWidthMM - 5, textY, { align: 'right' });
       });
 
-      pdf.save(`${paperData.title || 'question-paper'}-${Date.now()}.pdf`);
+      const suffix = withAnswers ? '-with-answers' : '';
+      pdf.save(`${paperData.title || 'question-paper'}${suffix}-${Date.now()}.pdf`);
 
       if (!['monthly', 'yearly'].includes(profile?.subscription_status)) {
         await decrementCredit(user.id);
@@ -836,14 +837,36 @@ export default function EditorPage() {
           >
             <FileCode className="w-4 h-4" /> LaTeX
           </button>
-          <button
-            onClick={handleDownload}
-            disabled={downloading}
-            className="btn-primary flex items-center gap-1.5 text-sm py-1.5 px-4"
-          >
-            {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            PDF {!['monthly', 'yearly'].includes(profile?.subscription_status) && `(${profile?.credits ?? 0} left)`}
-          </button>
+          {paperData.questions?.some(q => q.answer) ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handleDownload(false)}
+                disabled={downloading}
+                className="flex items-center gap-1.5 text-sm py-1.5 px-3 bg-primary-900 text-white rounded-l-lg hover:bg-blue-800 disabled:opacity-50 transition-colors font-medium border-r border-blue-700"
+                title="Download PDF without answers"
+              >
+                {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                PDF
+              </button>
+              <button
+                onClick={() => handleDownload(true)}
+                disabled={downloading}
+                className="flex items-center gap-1.5 text-sm py-1.5 px-3 bg-green-700 text-white rounded-r-lg hover:bg-green-600 disabled:opacity-50 transition-colors font-medium"
+                title="Download PDF with answer key included"
+              >
+                + Answers
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => handleDownload(false)}
+              disabled={downloading}
+              className="btn-primary flex items-center gap-1.5 text-sm py-1.5 px-4"
+            >
+              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              PDF
+            </button>
+          )}
         </div>
       </div>
 
