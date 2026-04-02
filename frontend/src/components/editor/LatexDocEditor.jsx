@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Download, Copy, ExternalLink, Check } from 'lucide-react';
+import { X, Download, ExternalLink } from 'lucide-react';
 import katex from 'katex';
 import { downloadLatexFile } from '../../lib/latexUtils';
 
@@ -134,7 +134,7 @@ export default function LatexDocEditor({ initialLatex, filename = 'document', on
     } catch (e) {
       previewRef.current.textContent = 'Preview error: ' + e.message;
     }
-  }, [code]);
+  }, [code, activePane]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
@@ -199,13 +199,6 @@ export default function LatexDocEditor({ initialLatex, filename = 'document', on
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            {copied ? <Check className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
           <button
             onClick={handleDownload}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white bg-primary-900 hover:bg-blue-800 rounded-lg transition-colors font-medium"

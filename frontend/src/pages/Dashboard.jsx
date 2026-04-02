@@ -335,7 +335,12 @@ export default function Dashboard() {
                         <Clock className="w-3 h-3" />
                         {new Date(paper.updated_at).toLocaleDateString('en-IN')}
                       </span>
-                      <span className="text-xs text-gray-400">{paper.questions?.length || 0} questions</span>
+                      <span className="text-xs text-gray-400">
+                        {paper.questions?.length || 0} questions
+                        {paper.questions?.some(q => q.answer) && (
+                          <span className="ml-1 text-green-600 font-medium">· with answers</span>
+                        )}
+                      </span>
                     </div>
                     <button
                       onClick={() => navigate(`/editor/${paper.id}`)}
