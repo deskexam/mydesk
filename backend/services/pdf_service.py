@@ -24,14 +24,36 @@ async def save_upload(file_bytes: bytes, filename: str) -> str:
 
 
 def extract_text_chunks(filename: str, chunk_size: int = 800, overlap: int = 100) -> List[Dict]:
+    from fastapi import HTTPException
     path = os.path.join(settings.upload_dir, filename)
     full_text = ""
 
-    with pdfplumber.open(path) as pdf:
-        for page in pdf.pages:
-            text = page.extract_text()
-            if text:
-                full_text += text + "\n"
+    try:
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    full_text += text + "\n"
+    except Exception as e:
+        # Delete the bad file so it doesn't linger
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        raise HTTPException(
+            status_code=422,
+            detail="The uploaded file is not a valid PDF or is corrupted. Please upload a proper PDF file."
+        )
+
+    if not full_text.strip():
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        raise HTTPException(
+            status_code=422,
+            detail="No readable text found in this PDF. It may be a scanned image-only PDF. Please upload a text-based PDF."
+        )
 
     words = full_text.split()
     chunks = []
