@@ -10,7 +10,6 @@ import LatexFormatModal from '../components/editor/LatexFormatModal';
 import LatexDocEditor from '../components/editor/LatexDocEditor';
 import PaywallModal from '../components/payment/PaywallModal';
 import { useAuth } from '../hooks/useAuth';
-import { decrementCredit } from '../lib/api';
 
 function downloadText(content, filename) {
   const blob = new Blob([content], { type: 'text/plain' });
@@ -26,7 +25,7 @@ const tabs = [
   { id: 'pdf-to-editor', label: 'PDF → Editor', icon: '✏️', desc: 'Extract questions from a PDF and open them directly in the question editor' },
   { id: 'pdf-to-latex', label: 'PDF → LaTeX', icon: '∑',   desc: 'Extract text and wrap it in a complete LaTeX document (.tex file)' },
   { id: 'pdf-to-ppt',   label: 'PDF → PPT',   icon: '📊',  desc: 'Extract slide-ready text outline from your question paper' },
-  { id: 'photo-to-latex', label: 'Photo → LaTeX', icon: '📷', desc: 'Upload a photo or image of a question paper — Gemini AI converts it to a complete LaTeX document' },
+  { id: 'photo-to-latex', label: 'Photo → LaTeX', icon: '📷', desc: 'Upload a photo or image of a question paper — AI converts it to a complete LaTeX document' },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -111,7 +110,7 @@ export default function PdfToolsPage() {
       setEditSubject(subject || '');
     } catch (err) {
       console.error('PPT generation error:', err);
-      setPdfError(`AI slide extraction failed: ${err.message}`);
+      setPdfError('Could not extract slides from this file. Please try with a different PDF.');
     }
     setAiProcessing(false);
     setAiStatus('');
@@ -129,7 +128,7 @@ export default function PdfToolsPage() {
       setShowLatexEditor(true);
     } catch (err) {
       console.error('LaTeX conversion error:', err);
-      setPdfError(`LaTeX conversion failed: ${err.message}`);
+      setPdfError('Could not convert this file to LaTeX. Please ensure it is a text-based PDF.');
     }
     setAiProcessing(false);
     setAiStatus('');
@@ -290,7 +289,7 @@ export default function PdfToolsPage() {
       const { questions } = response.data;
       
       if (questions.length === 0) {
-        setPdfError('Gemini found no questions. Make sure the file contains exam questions.');
+        setPdfError('No questions were found in this file. Please make sure it is a text-based exam paper PDF.');
         setAiProcessing(false);
         return;
       }
@@ -305,7 +304,7 @@ export default function PdfToolsPage() {
       };
       setResult({
         type: 'parsed-questions',
-        title: `🤖 ${questions.length} question${questions.length !== 1 ? 's' : ''} extracted by Gemini AI`,
+        title: `🤖 ${questions.length} question${questions.length !== 1 ? 's' : ''} extracted by AI`,
         rawText: '',
         parsed,
         isAiResult: true,
@@ -313,7 +312,7 @@ export default function PdfToolsPage() {
     } catch (err) {
       clearInterval(interval);
       console.error('Backend extraction error:', err);
-      setPdfError(`AI extraction failed: ${err.message}`);
+      setPdfError('Could not extract questions from this file. Please ensure it is a clear, text-based PDF exam paper.');
     }
 
     setAiProcessing(false);
@@ -553,8 +552,13 @@ export default function PdfToolsPage() {
               </div>
 
               {pdfError && (
-                <div className="flex items-start gap-2 mt-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700 text-sm">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {pdfError}
+                <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
+                  <div className="flex items-start gap-2 text-amber-800 font-medium mb-1">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    Something didn't go as expected
+                  </div>
+                  <p className="text-amber-700 ml-6">{pdfError}</p>
+                  <p className="text-amber-600 ml-6 mt-1 text-xs">Please try again with a different file, or contact support if this keeps happening.</p>
                 </div>
               )}
 
