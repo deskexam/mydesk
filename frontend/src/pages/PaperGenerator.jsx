@@ -4,6 +4,7 @@ import { generateAndSavePaper, fastapiClient } from '../lib/api';
 import toast from 'react-hot-toast';
 import { Sparkles, FileText, Download, Edit, BookOpen, Lock } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import PaywallModal from '../components/payment/PaywallModal';
 
 const BOARDS = ["CBSE", "ICSE", "Maharashtra"];
 const GRADES = ["8", "9", "10", "11", "12"];
@@ -259,6 +260,8 @@ export default function PaperGenerator() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallReason, setPaywallReason] = useState('papers');
   const isFree = !profile?.plan || profile?.plan === 'free';
   const [selectedTopics, setSelectedTopics] = useState([]);
 
@@ -292,7 +295,9 @@ export default function PaperGenerator() {
     fastapiClient.get('/api/documents/meta/boards').then(res => {
       setAvailableBoards(res.data);
       if (res.data.length > 0) setForm(f => ({ ...f, board: res.data[0] }));
-    }).catch(() => {}).finally(() => setDbLoading(false));
+    }).catch(() => {
+      toast.error('Could not load available content. Please refresh the page.');
+    }).finally(() => setDbLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load grades when board changes
@@ -390,7 +395,22 @@ export default function PaperGenerator() {
       navigate(`/editor/${paper.id}`);
     } catch (err) {
       toast.dismiss(toastId);
-      toast.error(err.response?.data?.detail || "Failed to generate paper");
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+      // detail can be a string or an object {code, message, ...}
+      const msg = typeof detail === 'object' ? detail?.message : detail;
+
+      if (status === 402) {
+        const code = typeof detail === 'object' ? detail?.code : '';
+        setPaywallReason(code === 'DOWNLOAD_LIMIT_REACHED' ? 'downloads' : 'papers');
+        setShowPaywall(true);
+      } else if (status === 403) {
+        toast.error(msg || 'This grade requires a higher plan. Please upgrade.');
+      } else if (status === 422) {
+        toast.error(msg || 'Invalid request. Please check your inputs and try again.');
+      } else {
+        toast.error(msg || 'Paper generation failed. Please try again in a moment.');
+      }
     } finally {
       setLoading(false);
     }
@@ -696,6 +716,10 @@ export default function PaperGenerator() {
 
         </div>
       </div>
+
+      {showPaywall && (
+        <PaywallModal reason={paywallReason} onClose={() => setShowPaywall(false)} />
+      )}
     </div>
   );
 }
