@@ -36,9 +36,10 @@ async def upload_document(
     filename = await save_upload(file_bytes, file.filename)
 
     loop = asyncio.get_event_loop()
-    chunks = await loop.run_in_executor(None, extract_text_chunks, filename)
-    if not chunks:
+    result_tuple = await loop.run_in_executor(None, extract_text_chunks, filename)
+    if not result_tuple or not result_tuple[0]:
         raise HTTPException(status_code=422, detail="Could not extract text from PDF")
+    chunks, doc_type = result_tuple
 
     db = get_db()
     doc = {
@@ -49,6 +50,7 @@ async def upload_document(
         "title": title,
         "filename": filename,
         "chunk_count": len(chunks),
+        "doc_type": doc_type,
         "uploaded_by": str(admin["_id"]),
         "created_at": datetime.utcnow(),
     }
@@ -60,6 +62,7 @@ async def upload_document(
         doc_id=doc_id,
         chunks=chunks,
         metadata={"board": board, "grade": grade, "subject": subject, "topics": topics_list, "title": title},
+        doc_type=doc_type,
     ))
 
     doc["id"] = doc_id
@@ -118,9 +121,10 @@ async def update_document(
             raise HTTPException(status_code=400, detail="Only PDF files are allowed")
         file_bytes = await file.read()
         filename = await save_upload(file_bytes, file.filename)
-        chunks = await loop.run_in_executor(None, extract_text_chunks, filename)
-        if not chunks:
+        result_tuple = await loop.run_in_executor(None, extract_text_chunks, filename)
+        if not result_tuple or not result_tuple[0]:
             raise HTTPException(status_code=422, detail="Could not extract text from PDF")
+        chunks, doc_type = result_tuple
         # Remove old chunks from vector store and re-index
         delete_doc_chunks(doc_id)
         await loop.run_in_executor(None, partial(
@@ -128,18 +132,23 @@ async def update_document(
             doc_id=doc_id,
             chunks=chunks,
             metadata={"board": board, "grade": grade, "subject": subject, "topics": topics_list, "title": title},
+            doc_type=doc_type,
         ))
         update["filename"] = filename
         update["chunk_count"] = len(chunks)
+        update["doc_type"] = doc_type
     else:
-        # No new file — just re-index metadata update in vector store
+        # No new file — re-index with updated metadata, preserve existing doc_type
+        doc_type = existing.get("doc_type", "textbook")
         delete_doc_chunks(doc_id)
-        existing_chunks = await loop.run_in_executor(None, extract_text_chunks, existing["filename"])
+        existing_result = await loop.run_in_executor(None, extract_text_chunks, existing["filename"])
+        existing_chunks = existing_result[0] if existing_result else []
         await loop.run_in_executor(None, partial(
             index_chunks,
             doc_id=doc_id,
             chunks=existing_chunks,
             metadata={"board": board, "grade": grade, "subject": subject, "topics": topics_list, "title": title},
+            doc_type=doc_type,
         ))
 
     await db.documents.update_one({"_id": ObjectId(doc_id)}, {"$set": update})

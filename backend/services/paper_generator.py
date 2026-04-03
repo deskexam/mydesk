@@ -2,7 +2,7 @@ import json
 import re
 from typing import List, Optional, Dict
 from core.config import settings
-from services.rag_service import retrieve_chunks, get_client
+from services.rag_service import retrieve_chunks, retrieve_example_questions, get_client
 
 MCQ_BATCH_SIZE = 50  # MCQ questions per LLM call
 
@@ -385,8 +385,16 @@ def generate_paper(
     active_model = model or settings.groq_model
     per_q_marks = {"MCQ": marks_per_mcq, "short_answer": marks_per_short, "long_answer": marks_per_long}
 
-    query = f"{subject} {' '.join(topics or [])} {board} grade {grade} exam questions"
+    # Build a richer query — more specific = better embedding match
+    topic_str = " ".join(topics or [])
+    query = f"{board} grade {grade} {subject} {topic_str} concepts explanation"
     chunks = retrieve_chunks(query, board, grade, subject, topics, n_results=6)
+
+    # For hard papers: supplement with past exam question examples if available
+    if difficulty == "hard":
+        example_qs = retrieve_example_questions(board, grade, subject, topics, n_results=4)
+        if example_qs:
+            chunks = chunks + example_qs  # add at end so context comes first
 
     explicit = any(x is not None for x in [num_mcq, num_short, num_long])
     if explicit:
