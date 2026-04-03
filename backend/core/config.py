@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     max_file_size: int = 10 * 1024 * 1024  # 10MB
     max_logo_size: int = 2 * 1024 * 1024   # 2MB
 
+    # Admin secret for protected endpoints (e.g. migration)
+    admin_secret: str = os.getenv("ADMIN_SECRET", "")
+
     # Plan limits: (papers_per_period, downloads_per_period, max_grade, trial_days)
     # free: lifetime totals | basic/pro/yearly: per anniversary period
     PLAN_LIMITS: dict = {

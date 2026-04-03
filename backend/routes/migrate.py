@@ -248,8 +248,7 @@ async def start_migration(
 
     Returns 202 immediately. Watch PM2 logs for progress.
     """
-    admin_secret = os.getenv("ADMIN_SECRET", "")
-    if not admin_secret or x_admin_secret != admin_secret:
+    if not settings.admin_secret or x_admin_secret != settings.admin_secret:
         raise HTTPException(status_code=403, detail="Invalid admin secret.")
 
     if _migration_state["running"]:
@@ -273,8 +272,7 @@ async def migration_status(
     x_admin_secret: str = Header(..., alias="x-admin-secret"),
 ):
     """Current progress + list of documents that need re-uploading."""
-    admin_secret = os.getenv("ADMIN_SECRET", "")
-    if not admin_secret or x_admin_secret != admin_secret:
+    if not settings.admin_secret or x_admin_secret != settings.admin_secret:
         raise HTTPException(status_code=403, detail="Invalid admin secret.")
 
     return {
@@ -297,8 +295,7 @@ async def list_needs_reupload(
     Returns all documents (from MongoDB) that are flagged needs_reupload=True.
     Persisted across server restarts — safe to call anytime.
     """
-    admin_secret = os.getenv("ADMIN_SECRET", "")
-    if not admin_secret or x_admin_secret != admin_secret:
+    if not settings.admin_secret or x_admin_secret != settings.admin_secret:
         raise HTTPException(status_code=403, detail="Invalid admin secret.")
 
     db = get_db()
