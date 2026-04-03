@@ -137,7 +137,7 @@ export default function PdfPreview({ paperData, showAnswers = false }) {
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginTop: 8, color: '#333' }}>
           <span>{metadata.className && `Class: ${metadata.className}`}</span>
-          <span>{metadata.maxMarks && `Max Marks: ${metadata.maxMarks}`}</span>
+          <span>{metadata.maxMarks && `Total Marks: ${metadata.maxMarks}`}</span>
           <span>{metadata.timeDuration && `Time: ${metadata.timeDuration}`}</span>
         </div>
         {metadata.teacherName && (

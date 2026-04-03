@@ -928,7 +928,7 @@ export default function EditorPage() {
                     ['instituteName', 'Institute Name'],
                     ['teacherName', 'Teacher Name'],
                     ['className', 'Class'],
-                    ['maxMarks', 'Max Marks'],
+                    ['maxMarks', 'Total Marks'],
                     ['timeDuration', 'Time Duration'],
                   ].map(([key, label]) => (
                     <div key={key}>
