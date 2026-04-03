@@ -1,10 +1,139 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generateAndSavePaper, fastapiClient } from '../lib/api';
 import toast from 'react-hot-toast';
-import { Sparkles, FileText, Download, Edit, BookOpen, Lock } from 'lucide-react';
+import { Sparkles, FileText, Download, Edit, BookOpen, Lock, RefreshCw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import PaywallModal from '../components/payment/PaywallModal';
+
+const LOADING_STEPS = [
+  "Reading through your curriculum content...",
+  "Picking the best topics for your paper...",
+  "Crafting thoughtful questions...",
+  "Balancing difficulty levels...",
+  "Organising sections and marks...",
+  "Verifying answers for accuracy...",
+  "Almost done — polishing your paper!",
+];
+
+function StudentAnimation({ message }) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <style>{`
+        @keyframes writeArm {
+          0%,100% { transform: rotate(-10deg); }
+          50%      { transform: rotate(8deg) translateX(3px); }
+        }
+        @keyframes floatStudent {
+          0%,100% { transform: translateY(0px); }
+          50%      { transform: translateY(-8px); }
+        }
+        @keyframes blinkEye {
+          0%,88%,100% { transform: scaleY(1); }
+          92%         { transform: scaleY(0.1); }
+        }
+        @keyframes lineDraw {
+          0%   { stroke-dashoffset: 80; }
+          100% { stroke-dashoffset: 0; }
+        }
+        .arm-write   { animation: writeArm 0.75s ease-in-out infinite; transform-origin: 100px 118px; }
+        .float-wrap  { animation: floatStudent 3s ease-in-out infinite; }
+        .eye-blink   { animation: blinkEye 4s ease-in-out infinite; }
+        .paper-line  { stroke-dasharray: 80; animation: lineDraw 1.2s ease-in-out infinite alternate; }
+        .paper-line2 { stroke-dasharray: 60; animation: lineDraw 1.2s 0.4s ease-in-out infinite alternate; }
+        .paper-line3 { stroke-dasharray: 50; animation: lineDraw 1.2s 0.8s ease-in-out infinite alternate; }
+      `}</style>
+
+      <div className="float-wrap">
+        <svg width="240" height="210" viewBox="0 0 240 210" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Desk legs */}
+          <rect x="30" y="155" width="10" height="45" rx="3" fill="#92400E" />
+          <rect x="200" y="155" width="10" height="45" rx="3" fill="#92400E" />
+          {/* Desk top */}
+          <rect x="15" y="145" width="210" height="12" rx="4" fill="#B45309" />
+
+          {/* Paper on desk */}
+          <rect x="95" y="128" width="105" height="20" rx="3" fill="white" stroke="#D1D5DB" strokeWidth="1.5" />
+          {/* Animated writing lines */}
+          <line className="paper-line"  x1="102" y1="134" x2="182" y2="134" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" />
+          <line className="paper-line2" x1="102" y1="140" x2="168" y2="140" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" />
+          <line className="paper-line3" x1="102" y1="146" x2="155" y2="146" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" />
+
+          {/* Chair */}
+          <rect x="55" y="160" width="60" height="7" rx="3" fill="#4B5563" />
+          <rect x="65" y="165" width="10" height="28" rx="3" fill="#4B5563" />
+          <rect x="95" y="165" width="10" height="28" rx="3" fill="#4B5563" />
+          <rect x="56" y="130" width="8" height="36" rx="3" fill="#4B5563" />
+
+          {/* Body */}
+          <rect x="62" y="112" width="46" height="52" rx="14" fill="#2563EB" />
+
+          {/* Head */}
+          <circle cx="85" cy="90" r="22" fill="#FDE68A" />
+          {/* Hair */}
+          <ellipse cx="85" cy="70" rx="22" ry="11" fill="#1C1917" />
+          <rect x="63" y="68" width="7" height="18" rx="3.5" fill="#1C1917" />
+
+          {/* Eyes */}
+          <g className="eye-blink">
+            <ellipse cx="78" cy="93" rx="3.2" ry="3.8" fill="#1C1917" />
+            <ellipse cx="92" cy="93" rx="3.2" ry="3.8" fill="#1C1917" />
+            {/* Eye shine */}
+            <circle cx="79.5" cy="91.5" r="1" fill="white" />
+            <circle cx="93.5" cy="91.5" r="1" fill="white" />
+          </g>
+          {/* Focused brow */}
+          <path d="M74 87 Q78 84.5 82 87" stroke="#92400E" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+          <path d="M88 87 Q92 84.5 96 87" stroke="#92400E" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+          {/* Smile */}
+          <path d="M78 101 Q85 106 92 101" stroke="#D97706" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+
+          {/* Left arm — resting */}
+          <path d="M65 122 Q52 133 50 145" stroke="#FDE68A" strokeWidth="11" strokeLinecap="round" fill="none" />
+
+          {/* Right arm — writing (animated) */}
+          <g className="arm-write">
+            <path d="M100 118 Q120 130 132 138" stroke="#FDE68A" strokeWidth="11" strokeLinecap="round" fill="none" />
+            <circle cx="133" cy="139" r="6" fill="#FDE68A" />
+            {/* Pencil */}
+            <rect x="127" y="122" width="5" height="22" rx="2.5" fill="#FCD34D" transform="rotate(35 127 122)" />
+            <polygon points="138,133 142,137 136,140" fill="#1C1917" />
+            <rect x="124" y="120" width="5" height="6" rx="1" fill="#F87171" transform="rotate(35 124 120)" />
+          </g>
+
+          {/* Floating sparkles */}
+          <circle cx="185" cy="55" r="4" fill="#818CF8">
+            <animate attributeName="opacity" values="1;0.2;1" dur="1.6s" repeatCount="indefinite" />
+            <animate attributeName="r" values="4;6;4" dur="1.6s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="28" cy="75" r="3" fill="#34D399">
+            <animate attributeName="opacity" values="1;0.2;1" dur="2.1s" repeatCount="indefinite" />
+            <animate attributeName="r" values="3;5;3" dur="2.1s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="170" cy="38" r="3.5" fill="#F472B6">
+            <animate attributeName="opacity" values="1;0.1;1" dur="1.9s" repeatCount="indefinite" />
+            <animate attributeName="r" values="3.5;5.5;3.5" dur="1.9s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="45" cy="110" r="2.5" fill="#FB923C">
+            <animate attributeName="opacity" values="0.9;0.2;0.9" dur="2.4s" repeatCount="indefinite" />
+          </circle>
+        </svg>
+      </div>
+
+      <div className="mt-2 text-center px-6">
+        <h2 className="text-2xl font-bold text-gray-800 mb-1">Creating Your Paper</h2>
+        <p className="text-blue-600 font-medium text-sm min-h-[22px] transition-all">{message}</p>
+        <div className="flex justify-center gap-2 mt-5">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="w-2.5 h-2.5 bg-blue-400 rounded-full animate-bounce"
+              style={{ animationDelay: `${i * 0.18}s` }} />
+          ))}
+        </div>
+        <p className="text-xs text-gray-400 mt-5">This usually takes 20–40 seconds</p>
+      </div>
+    </div>
+  );
+}
 
 const BOARDS = ["CBSE", "ICSE", "Maharashtra"];
 const GRADES = ["8", "9", "10", "11", "12"];
@@ -260,10 +389,28 @@ export default function PaperGenerator() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [animMsg, setAnimMsg] = useState(LOADING_STEPS[0]);
+  const [generationError, setGenerationError] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallReason, setPaywallReason] = useState('papers');
   const isFree = !profile?.plan || profile?.plan === 'free';
   const [selectedTopics, setSelectedTopics] = useState([]);
+  const animTimerRef = useRef(null);
+
+  // Cycle through loading messages while generating
+  useEffect(() => {
+    if (loading) {
+      setAnimMsg(LOADING_STEPS[0]);
+      let idx = 0;
+      animTimerRef.current = setInterval(() => {
+        idx = (idx + 1) % LOADING_STEPS.length;
+        setAnimMsg(LOADING_STEPS[idx]);
+      }, 4500);
+    } else {
+      clearInterval(animTimerRef.current);
+    }
+    return () => clearInterval(animTimerRef.current);
+  }, [loading]);
 
   // Dynamic data from DB
   const [availableBoards, setAvailableBoards] = useState([]);
@@ -359,17 +506,11 @@ export default function PaperGenerator() {
     if (!effectiveMarks || effectiveMarks < 1) return toast.error("Total marks must be at least 1");
     if (derivedTypes.length === 0) return toast.error("Enter a count for at least one question type");
 
-    const mcqCount = form.num_mcq !== "" ? Number(form.num_mcq) : 0;
-    const numBatches = Math.ceil(mcqCount / 50);
-    const loadingMsg = mcqCount > 50
-      ? `Generating ${mcqCount} MCQ in ${numBatches} batches... ~${numBatches * 20}–${numBatches * 30}s`
-      : "Generating paper with AI... This may take 15–30 seconds.";
-
     // Topics: if none selected → pass full topic list; if specific → pass those
     const topicsPayload = selectedTopics.length > 0 ? selectedTopics : (availableTopics.length > 0 ? availableTopics : null);
 
+    setGenerationError(false);
     setLoading(true);
-    const toastId = toast.loading(loadingMsg);
     try {
       const payload = {
         board: form.board,
@@ -390,14 +531,11 @@ export default function PaperGenerator() {
       };
 
       const paper = await generateAndSavePaper(payload);
-      toast.dismiss(toastId);
       toast.success("Paper generated successfully!");
       navigate(`/editor/${paper.id}`);
     } catch (err) {
-      toast.dismiss(toastId);
       const status = err.response?.status;
       const detail = err.response?.data?.detail;
-      // detail can be a string or an object {code, message, ...}
       const msg = typeof detail === 'object' ? detail?.message : detail;
 
       if (status === 402) {
@@ -409,12 +547,37 @@ export default function PaperGenerator() {
       } else if (status === 422) {
         toast.error(msg || 'Invalid request. Please check your inputs and try again.');
       } else {
-        toast.error(msg || 'Paper generation failed. Please try again in a moment.');
+        // 500 / 413 / network — show friendly retry screen
+        setGenerationError(true);
       }
     } finally {
       setLoading(false);
     }
   };
+
+  // Full-screen generating animation
+  if (loading) return <StudentAnimation message={animMsg} />;
+
+  // Friendly retry screen on unexpected errors
+  if (generationError) return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col items-center justify-center px-4">
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-10 max-w-md w-full text-center">
+        <div className="text-6xl mb-4">😅</div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Oops, Our AI Got a Bit Busy!</h2>
+        <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+          Our AI is handling a lot of papers right now and couldn't finish yours in time.
+          Don't worry — your settings are saved. Just give it a moment and try again!
+        </p>
+        <button
+          onClick={() => setGenerationError(false)}
+          className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Try Again
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -688,7 +851,7 @@ export default function PaperGenerator() {
               >
                 <div className="flex items-center justify-center gap-3">
                   <Sparkles className="w-5 h-5" />
-                  {loading ? "Generating..." : "Generate Paper & Edit"}
+                  Generate Paper &amp; Edit
                 </div>
               </button>
             </form>

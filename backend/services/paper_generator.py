@@ -272,7 +272,7 @@ def _generate_batched(
                 start_num=current_num, used_questions=all_mcqs,
             )
             message = client.chat.completions.create(
-                model=model, max_tokens=8192,
+                model=model, max_tokens=3000,
                 messages=[{"role": "user", "content": prompt}],
             )
             raw = message.choices[0].message.content.strip()
@@ -305,7 +305,7 @@ def _generate_batched(
             non_mcq_types, difficulty, context_chunks, include_answer_key,
             non_mcq_counts, per_q_marks,
         )
-        max_out = min(max(4096, non_mcq_total * 400), 16384)
+        max_out = min(max(2048, non_mcq_total * 60), 5000)
         message = client.chat.completions.create(
             model=model, max_tokens=max_out,
             messages=[{"role": "user", "content": prompt}],
@@ -382,7 +382,7 @@ def generate_paper(
         question_types, difficulty, chunks, include_answer_key,
         counts, per_q_marks,
     )
-    max_out = min(max(8192, total_marks * 300), 32768)
+    max_out = min(max(2048, total_marks * 60), 5500)
 
     client = get_client()
     message = client.chat.completions.create(
@@ -485,7 +485,7 @@ QUESTIONS:
     try:
         message = client.chat.completions.create(
             model=model,
-            max_tokens=8192,
+            max_tokens=4000,
             messages=[{"role": "user", "content": prompt}],
         )
         raw = message.choices[0].message.content.strip()

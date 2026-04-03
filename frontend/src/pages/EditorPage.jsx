@@ -1,14 +1,14 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import {
-  Plus, Trash2, Download, Save, Eye, EyeOff, Image,
+  Plus, Trash2, Download, Eye, EyeOff, Image,
   ChevronDown, X, Loader2, FileCode, GripVertical,
 } from 'lucide-react';
 import Navbar from '../components/auth/Navbar';
 import PdfPreview from '../components/editor/PdfPreview';
 import { LatexInput } from '../components/editor/LatexRenderer';
-import LatexFormatModal from '../components/editor/LatexFormatModal';
 import PaywallModal from '../components/payment/PaywallModal';
+import { generateLatex, downloadLatexFile } from '../lib/latexUtils';
 import { useAuth } from '../hooks/useAuth';
 import { savePaper, getPaper, decrementCredit, incrementPaperCount, fastapiClient } from '../lib/api';
 import { v4 as uuidv4 } from 'uuid';
@@ -454,7 +454,6 @@ export default function EditorPage() {
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [showLatexModal, setShowLatexModal] = useState(false);
   const [savedPaperId, setSavedPaperId] = useState(paperId || null);
   const [showMetadata, setShowMetadata] = useState(true);
   const [importBanner, setImportBanner] = useState('');
@@ -639,6 +638,21 @@ export default function EditorPage() {
       }
     }
     setSaving(false);
+  };
+
+  const handleLatexDownload = () => {
+    // Strip answers when showAnswers is off
+    const dataForLatex = showAnswers ? paperData : {
+      ...paperData,
+      questions: paperData.questions.map(q => ({ ...q, answer: '' })),
+    };
+    try {
+      const tex = generateLatex(dataForLatex, 'cbse');
+      const safeName = (paperData.title || 'question-paper').replace(/[^a-z0-9]/gi, '-').toLowerCase();
+      downloadLatexFile(tex, `${safeName}${showAnswers ? '-with-answers' : ''}.tex`);
+    } catch (err) {
+      console.error('LaTeX generation error:', err);
+    }
   };
 
   // ── Download — clones PdfPreview off-screen so live preview is NEVER mutated ──
@@ -842,50 +856,21 @@ export default function EditorPage() {
             </button>
           )}
           <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save
-          </button>
-          <button
-            onClick={() => setShowLatexModal(true)}
+            onClick={handleLatexDownload}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50"
             title="Download as LaTeX (.tex)"
           >
             <FileCode className="w-4 h-4" /> LaTeX
           </button>
-          {paperData.questions?.some(q => q.answer) ? (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => handleDownload(false)}
-                disabled={downloading}
-                className="flex items-center gap-1.5 text-sm py-1.5 px-3 bg-primary-900 text-white rounded-l-lg hover:bg-blue-800 disabled:opacity-50 transition-colors font-medium border-r border-blue-700"
-                title="Download PDF without answers"
-              >
-                {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                PDF
-              </button>
-              <button
-                onClick={() => handleDownload(true)}
-                disabled={downloading}
-                className="flex items-center gap-1.5 text-sm py-1.5 px-3 bg-green-700 text-white rounded-r-lg hover:bg-green-600 disabled:opacity-50 transition-colors font-medium"
-                title="Download PDF with answer key included"
-              >
-                + Answers
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => handleDownload(false)}
-              disabled={downloading}
-              className="btn-primary flex items-center gap-1.5 text-sm py-1.5 px-4"
-            >
-              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              PDF
-            </button>
-          )}
+          <button
+            onClick={() => handleDownload(showAnswers)}
+            disabled={downloading}
+            className="btn-primary flex items-center gap-1.5 text-sm py-1.5 px-4"
+            title={showAnswers ? 'Download PDF with answers' : 'Download PDF'}
+          >
+            {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            PDF{showAnswers ? ' + Answers' : ''}
+          </button>
         </div>
       </div>
 
@@ -1045,8 +1030,7 @@ export default function EditorPage() {
         </div>
       </div>
 
-      {showPaywall    && <PaywallModal onClose={() => setShowPaywall(false)} />}
-      {showLatexModal && <LatexFormatModal paperData={paperData} onClose={() => setShowLatexModal(false)} />}
+      {showPaywall && <PaywallModal onClose={() => setShowPaywall(false)} />}
 
       {showAnswerReview && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
