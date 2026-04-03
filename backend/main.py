@@ -7,7 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from core.database import connect_db, close_db, get_db
 from core.config import settings
 from core.responses import SafeJSONResponse
-from routes import auth, documents, papers, users, pdf_tools, payment
+from routes import auth, documents, papers, users, pdf_tools, payment, migrate
 from services.rag_service import get_client
 
 @asynccontextmanager
@@ -48,6 +48,7 @@ app.include_router(papers.router, prefix="/api/papers", tags=["papers"])
 app.include_router(users.router)                                        # prefix="/api/users" set in users.py
 app.include_router(pdf_tools.router)                                    # prefix="/api/pdf-tools" set in pdf_tools.py
 app.include_router(payment.router)                                      # prefix="/api/payment" set in payment.py
+app.include_router(migrate.router)                                      # prefix="/api/admin" set in migrate.py
 
 @app.get("/")
 async def root():
