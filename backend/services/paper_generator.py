@@ -7,9 +7,30 @@ from services.rag_service import retrieve_chunks, get_client
 MCQ_BATCH_SIZE = 50  # MCQ questions per LLM call
 
 DIFFICULTY_INSTRUCTIONS = {
-    "easy": "Focus on basic recall, definitions, and straightforward application of concepts.",
-    "medium": "Include a mix of recall, understanding, application, and some analysis questions.",
-    "hard": "Focus on analysis, synthesis, evaluation, and complex problem-solving. Include twisted and application-based questions.",
+    "easy": (
+        "Bloom's Level: Remember & Understand. "
+        "Questions must test direct recall, definitions, labelling, and one-step computations. "
+        "Avoid multi-step reasoning. Suitable for students who have just read the chapter once."
+    ),
+    "medium": (
+        "Bloom's Level: Apply & Analyse. "
+        "Questions must require applying concepts to solve problems (2–3 steps), interpreting data, "
+        "or explaining cause-and-effect. Do NOT include pure recall or definition questions."
+    ),
+    "hard": (
+        "Bloom's Level: Analyse, Evaluate & Create. "
+        "EVERY question must be genuinely challenging. Requirements:\n"
+        "  • MCQ: options must be very close and plausible — at least 2 options should look correct to an unprepared student. Include tricky exceptions, edge-cases, or misconception-based distractors.\n"
+        "  • Short/Long answer: require multi-step reasoning, derivations, proof-based arguments, unfamiliar applications, or synthesis of two or more concepts.\n"
+        "  • STRICTLY FORBIDDEN: do not include any question that tests plain recall, simple definitions, or one-step computation.\n"
+        "  • Questions should challenge students who already know the topic well."
+    ),
+}
+
+DIFFICULTY_SYSTEM_ROLE = {
+    "easy":   "You are setting a basic revision test for students who have just studied this chapter for the first time.",
+    "medium": "You are setting an application-level class test. Students know the theory; they must now apply it.",
+    "hard":   "You are setting a HARD exam to challenge top-scoring students. Every question must be difficult, analytical, and thought-provoking. If any question feels too easy, replace it.",
 }
 
 TYPE_MAP = {
@@ -67,12 +88,17 @@ def _build_mcq_batch_prompt(
         if include_answer_key else 'Do NOT include an "answer" field.'
     )
 
-    return f"""You are an expert exam paper setter for {board} Board, Grade {grade}, Subject: {subject}.
+    system_role = DIFFICULTY_SYSTEM_ROLE.get(difficulty, "You are an expert exam paper setter.")
+    diff_detail = DIFFICULTY_INSTRUCTIONS.get(difficulty, '')
+
+    return f"""{system_role}
+You are setting a {board} Board, Grade {grade}, Subject: {subject} exam paper.
 
 TASK: Generate exactly {count} unique MCQ questions numbered from {start_num} to {start_num + count - 1}.
 
 Topics: {topics_str}
-Difficulty: {difficulty} — {DIFFICULTY_INSTRUCTIONS.get(difficulty, '')}
+Difficulty Level: {difficulty.upper()}
+{diff_detail}
 
 SYLLABUS CONTEXT (all questions must be based on this material):
 {context}
@@ -82,10 +108,10 @@ REQUIREMENTS:
 1. Exactly {count} questions, numbered starting at {start_num}.
 2. Each question must have exactly 4 options: ["A. ...", "B. ...", "C. ...", "D. ..."]
 3. Each MCQ is worth {marks_per_mcq} mark(s).
-4. Generate ORIGINAL, UNSEEN questions — not copied from standard textbooks or past papers.
-5. Questions must test UNDERSTANDING and APPLICATION, not rote recall.
-6. Each question must cover a DIFFERENT concept — no topic repetition.
-7. Base every question strictly on the syllabus context above.
+4. Generate ORIGINAL questions — not copied from standard textbooks or past papers.
+5. Each question must cover a DIFFERENT concept — no topic repetition.
+6. Base every question strictly on the syllabus context above.
+7. STRICTLY FOLLOW the difficulty level requirements above — this is mandatory.
 8. {answer_instruction}
 
 OUTPUT: strict JSON array only, no markdown, no extra text:
@@ -155,7 +181,11 @@ def build_prompt(
             "topic": "topic name"
           }}'''
 
-    return f"""You are an expert exam paper setter for {board} Board, Grade {grade}, Subject: {subject}.
+    system_role = DIFFICULTY_SYSTEM_ROLE.get(difficulty, "You are an expert exam paper setter.")
+    diff_detail = DIFFICULTY_INSTRUCTIONS.get(difficulty, '')
+
+    return f"""{system_role}
+You are setting a {board} Board, Grade {grade}, Subject: {subject} exam paper.
 
 TASK: Create a complete exam paper based on the following specifications.
 
@@ -166,9 +196,12 @@ SPECIFICATIONS:
 - Topics: {topics_str}
 - Total Marks: {total_marks}
 - Duration: {duration_minutes} minutes
-- Difficulty: {difficulty} — {DIFFICULTY_INSTRUCTIONS.get(difficulty, '')}
+- Difficulty Level: {difficulty.upper()} — MANDATORY
 - Question Types:
 {qt_instructions}
+
+DIFFICULTY REQUIREMENTS (MUST BE FOLLOWED FOR EVERY SINGLE QUESTION):
+{diff_detail}
 
 SYLLABUS CONTEXT (base all questions on this material):
 {context}
@@ -182,9 +215,9 @@ INSTRUCTIONS:
 6. Follow {board} board exam format and language style.
 7. {"Include correct answers for each question." if include_answer_key else "Do NOT include answers — omit the answer field entirely."}
 8. The "sections" array must ONLY contain sections with "type" from: {question_types}.
-9. Generate ORIGINAL, UNSEEN questions — not from standard textbooks or past papers.
-10. Questions must test UNDERSTANDING, APPLICATION, and ANALYSIS — not rote memorization.
-11. Base every question strictly on the syllabus context provided above.
+9. Generate ORIGINAL questions — not copied from textbooks or past papers.
+10. Base every question strictly on the syllabus context provided above.
+11. STRICTLY ENFORCE the difficulty level — reject and replace any question that does not match.
 
 OUTPUT FORMAT (strict JSON only, no markdown, no extra text):
 {{
