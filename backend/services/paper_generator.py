@@ -556,6 +556,28 @@ No markdown, no explanation."""
     return []
 
 
+def _python_validate_mcqs(mcq_flat: List[dict]) -> List[dict]:
+    """
+    Python-only MCQ validation — no LLM needed.
+    Removes: missing question text, fewer than 4 options, exact duplicates.
+    """
+    seen: set = set()
+    valid = []
+    for q in mcq_flat:
+        text = q.get("question", "").strip()
+        options = q.get("options") or []
+        if not text:
+            continue
+        if len(options) < 4:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        valid.append(q)
+    return valid
+
+
 def verify_and_clean_paper(
     paper: dict,
     model: str,
@@ -566,12 +588,11 @@ def verify_and_clean_paper(
 ) -> dict:
     """
     Second-pass QA:
-    - Remove duplicates, incomplete, or bad questions
-    - Verify answer correctness (sets answer_verified flag)
-    - Regenerate replacements for any removed questions
-      so the final count matches what the user requested.
+    - MCQs: validated in Python (4 options, dedup) — never sent to LLM to avoid truncation
+    - Non-MCQ: sent to LLM for semantic/factual review
+    - Replacement questions regenerated (batched for MCQ) to match requested counts
 
-    Uses llama-3.1-8b-instant for verify (higher TPM, sufficient for QA).
+    Uses llama-3.1-8b-instant for verify (higher TPM).
     Uses the generation model for replacements (needs quality).
     """
     VERIFY_MODEL = "llama-3.1-8b-instant"
@@ -581,104 +602,128 @@ def verify_and_clean_paper(
     if not sections:
         return paper
 
-    # Track original counts per section type for replacement
-    original_counts: Dict[str, int] = {}
+    target_counts = expected_counts or {
+        sec.get("type", ""): len(sec.get("questions", []))
+        for sec in sections
+    }
+
+    board     = paper.get("board", "")
+    grade     = paper.get("grade", "")
+    subject   = paper.get("subject", "")
+    difficulty = paper.get("difficulty", "medium")
+    topics    = paper.get("topics_covered", [])
+
+    # ── 1. Split into MCQ vs non-MCQ ────────────────────────────────────────
+    mcq_flat:     List[dict] = []
+    non_mcq_flat: List[dict] = []
     for sec in sections:
         stype = sec.get("type", "")
-        original_counts[stype] = len(sec.get("questions", []))
-
-    # Use caller-provided expected counts if available (more accurate)
-    target_counts = expected_counts or original_counts
-
-    flat = []
-    for sec in sections:
         for q in sec.get("questions", []):
-            flat.append({
-                "section_type": sec.get("type"),
+            entry = {
+                "section_type": stype,
                 "question":     q.get("question", ""),
                 "options":      q.get("options"),
                 "answer":       q.get("answer"),
                 "marks":        q.get("marks", 1),
                 "topic":        q.get("topic", ""),
-            })
+            }
+            if stype == "MCQ":
+                mcq_flat.append(entry)
+            else:
+                non_mcq_flat.append(entry)
 
-    has_answers = any(q.get("answer") for q in flat)
-    answer_instructions = """
+    # ── 2. Python-validate MCQs (fast, no token limits) ─────────────────────
+    validated_mcqs = _python_validate_mcqs(mcq_flat)
+    print(f"[VERIFY] MCQ python-check: {len(mcq_flat)} in → {len(validated_mcqs)} valid", flush=True)
+
+    # ── 3. LLM-verify non-MCQ questions (they're far fewer / smaller) ────────
+    validated_non_mcq: List[dict] = non_mcq_flat  # default: keep all if LLM fails
+    if non_mcq_flat:
+        has_answers = any(q.get("answer") for q in non_mcq_flat)
+        answer_instructions = """
 7. For every question that has an "answer" field:
    - Verify the answer is FACTUALLY CORRECT.
-   - For MCQ: confirm the answer matches one of the options and is correct.
-   - If correct and confident → set "answer_verified": true.
+   - If correct → set "answer_verified": true.
    - If wrong or unsure → CORRECT it and set "answer_verified": false.
-   - Never leave a wrong answer — fix it or flag it.
 """ if has_answers else ""
 
-    prompt = f"""You are a strict exam quality-control reviewer for {paper.get('board', '')} Board, Grade {paper.get('grade', '')}, {paper.get('subject', '')} paper.
+        llm_prompt = f"""You are a strict exam quality-control reviewer for {board} Board, Grade {grade}, {subject}.
 
 Review the questions below and:
 1. REMOVE any duplicate or near-duplicate questions (keep the better one).
 2. REMOVE any question that is incomplete, poorly worded, or has missing text.
-3. For MCQ: REMOVE any question without exactly 4 distinct options (A, B, C, D).
-4. REMOVE any question where the correct answer is not among the options.
-5. REMOVE any off-topic, inappropriate, or factually incorrect questions.
-6. Keep all valid questions unchanged — do not rephrase or alter them.
+3. REMOVE any off-topic or factually incorrect questions.
+4. Keep all valid questions EXACTLY unchanged — do not rephrase them.
+5. PRESERVE the "section_type" field on every returned question — this is mandatory.
 {answer_instructions}
-Return ONLY a valid JSON array. No markdown, no explanation.
+Return ONLY a valid JSON array with the same fields as input. No markdown, no explanation.
 
 QUESTIONS:
-{json.dumps(flat, indent=2)[:12000]}"""
+{json.dumps(non_mcq_flat, indent=2)[:8000]}"""
 
+        try:
+            verify_max = min(max(1500, len(non_mcq_flat) * 80), 4000)
+            message = client.chat.completions.create(
+                model=VERIFY_MODEL,
+                max_tokens=verify_max,
+                messages=[{"role": "user", "content": llm_prompt}],
+            )
+            raw = message.choices[0].message.content.strip()
+            arr_match = re.search(r'\[[\s\S]*\]', raw)
+            if arr_match:
+                llm_result = json.loads(arr_match.group())
+                # Ensure section_type is preserved (LLM sometimes drops it)
+                for i, q in enumerate(llm_result):
+                    if not q.get("section_type") and i < len(non_mcq_flat):
+                        q["section_type"] = non_mcq_flat[i].get("section_type", "short_answer")
+                validated_non_mcq = llm_result
+                print(f"[VERIFY] Non-MCQ LLM-check: {len(non_mcq_flat)} in → {len(validated_non_mcq)} valid", flush=True)
+        except Exception as e:
+            print(f"[VERIFY] Non-MCQ verify failed: {e} — keeping originals", flush=True)
+
+    # ── 4. Combine and count ─────────────────────────────────────────────────
+    cleaned_flat = validated_mcqs + validated_non_mcq
+    cleaned_counts: Dict[str, int] = {}
+    for q in cleaned_flat:
+        stype = q.get("section_type", "short_answer")
+        cleaned_counts[stype] = cleaned_counts.get(stype, 0) + 1
+
+    # ── 5. Regenerate replacements for removed questions ─────────────────────
+    existing_qs = [q.get("question", "") for q in cleaned_flat]
+
+    for stype, target in target_counts.items():
+        got = cleaned_counts.get(stype, 0)
+        shortage = target - got
+        if shortage <= 0:
+            continue
+        print(f"[VERIFY] {shortage} {stype} question(s) short — regenerating replacements", flush=True)
+        marks = (per_q_marks or {}).get(stype, 1)
+
+        # Batch replacements so we never exceed MCQ_BATCH_SIZE per call
+        batch_limit = MCQ_BATCH_SIZE if stype == "MCQ" else shortage
+        remaining = shortage
+        while remaining > 0:
+            batch = min(batch_limit, remaining)
+            replacements = _regenerate_replacements(
+                section_type=stype,
+                count=batch,
+                marks=marks,
+                board=board, grade=grade, subject=subject,
+                topics=topics, difficulty=difficulty,
+                include_answer_key=include_answer_key,
+                context_chunks=context_chunks or [],
+                existing_questions=existing_qs,
+                model=model,
+            )
+            for r in replacements:
+                r["section_type"] = stype
+            cleaned_flat.extend(replacements)
+            existing_qs.extend(r.get("question", "") for r in replacements)
+            remaining -= batch
+
+    # ── 6. Rebuild sections ──────────────────────────────────────────────────
     try:
-        verify_max = min(max(2000, len(flat) * 60), 5000)
-        message = client.chat.completions.create(
-            model=VERIFY_MODEL,
-            max_tokens=verify_max,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = message.choices[0].message.content.strip()
-        arr_match = re.search(r'\[[\s\S]*\]', raw)
-        if not arr_match:
-            return paper
-
-        cleaned_flat = json.loads(arr_match.group())
-
-        # Count how many were removed per section type
-        cleaned_counts: Dict[str, int] = {}
-        for q in cleaned_flat:
-            stype = q.get("section_type", "short_answer")
-            cleaned_counts[stype] = cleaned_counts.get(stype, 0) + 1
-
-        # Regenerate replacements for removed questions
-        existing_qs = [q.get("question", "") for q in cleaned_flat]
-        topics = paper.get("topics_covered", [])
-        board  = paper.get("board", "")
-        grade  = paper.get("grade", "")
-        subject = paper.get("subject", "")
-        difficulty = paper.get("difficulty", "medium")
-
-        for stype, target in target_counts.items():
-            got = cleaned_counts.get(stype, 0)
-            shortage = target - got
-            if shortage > 0:
-                print(f"[VERIFY] {shortage} {stype} question(s) removed — regenerating replacements", flush=True)
-                marks = (per_q_marks or {}).get(stype, 1)
-                replacements = _regenerate_replacements(
-                    section_type=stype,
-                    count=shortage,
-                    marks=marks,
-                    board=board, grade=grade, subject=subject,
-                    topics=topics, difficulty=difficulty,
-                    include_answer_key=include_answer_key,
-                    context_chunks=context_chunks or [],
-                    existing_questions=existing_qs,
-                    model=model,
-                )
-                for r in replacements:
-                    r["section_type"] = stype
-                cleaned_flat.extend(replacements)
-                existing_qs.extend(r.get("question", "") for r in replacements)
-
-        # Rebuild sections
-        sections_map = {}
+        sections_map: Dict[str, dict] = {}
         for q in cleaned_flat:
             stype = q.get("section_type", "short_answer")
             if stype not in sections_map:
@@ -696,10 +741,12 @@ QUESTIONS:
         paper["total_marks"] = sum(
             q.get("marks", 1) for s in paper["sections"] for q in s.get("questions", [])
         )
-        print(f"[VERIFY] Final counts: { {k: len(v['questions']) for k, v in sections_map.items()} }", flush=True)
-
+        print(
+            f"[VERIFY] Final counts: { {k: len(v['questions']) for k, v in sections_map.items()} }",
+            flush=True,
+        )
     except Exception as e:
-        print(f"[VERIFY] Verify pass failed: {e} — returning original paper", flush=True)
+        print(f"[VERIFY] Section rebuild failed: {e} — returning original paper", flush=True)
 
     return paper
 
