@@ -722,12 +722,15 @@ export default function PaperGenerator() {
                 {/* Question Counts */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">MCQ Questions</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">MCQ Questions <span className="text-xs font-normal text-gray-400">(max 25)</span></label>
                     <input
-                      type="number" min="0" placeholder="e.g. 40"
+                      type="number" min="0" max="25" placeholder="e.g. 20"
                       className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                       value={form.num_mcq}
-                      onChange={(e) => setForm({ ...form, num_mcq: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? "" : Math.min(25, Math.max(0, Number(e.target.value)));
+                        setForm({ ...form, num_mcq: val });
+                      }}
                     />
                   </div>
                   <div>
