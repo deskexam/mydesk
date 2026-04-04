@@ -32,9 +32,7 @@ CURRICULUM: dict = {
         },
         **{
             str(g): {
-                "Mathematics": [], "Physics": [], "Chemistry": [],
-                "Biology": [], "English": [], "Hindi": [],
-                "History & Civics": [], "Geography": [],
+                "Mathematics": [], "Physics": [], "Chemistry": [], "English": [],
             }
             for g in range(8, 11)
         },
