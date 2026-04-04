@@ -236,9 +236,8 @@ async def delete_document(doc_id: str, admin: dict = Depends(require_admin)):
 @router.get("/meta/boards")
 async def get_boards(_: dict = Depends(get_current_user)):
     db = get_db()
-    db_boards = await db.documents.distinct("board")
-    merged = sorted(set(db_boards) | set(_curriculum_boards()))
-    return merged
+    boards = await db.documents.distinct("board")
+    return sorted(boards)
 
 
 @router.get("/meta/grades")
@@ -247,12 +246,8 @@ async def get_grades(board: Optional[str] = None, _: dict = Depends(get_current_
     query = {}
     if board:
         query["board"] = board
-    db_grades = await db.documents.distinct("grade", query)
-    merged = sorted(
-        set(db_grades) | set(_curriculum_grades(board)),
-        key=lambda x: int(x) if x.isdigit() else x,
-    )
-    return merged
+    grades = await db.documents.distinct("grade", query)
+    return sorted(grades, key=lambda x: int(x) if x.isdigit() else x)
 
 
 @router.get("/meta/subjects")
@@ -263,9 +258,8 @@ async def get_subjects(board: Optional[str] = None, grade: Optional[str] = None,
         query["board"] = board
     if grade:
         query["grade"] = grade
-    db_subjects = await db.documents.distinct("subject", query)
-    merged = sorted(set(db_subjects) | set(_curriculum_subjects(board, grade)))
-    return merged
+    subjects = await db.documents.distinct("subject", query)
+    return sorted(subjects)
 
 
 @router.get("/meta/topics")
