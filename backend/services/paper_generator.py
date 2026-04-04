@@ -5,6 +5,7 @@ from core.config import settings
 from services.rag_service import retrieve_chunks, retrieve_example_questions, get_client
 
 MCQ_BATCH_SIZE = 25  # MCQ questions per LLM call
+MCQ_MODEL = "llama-3.1-8b-instant"  # 500k TPD — used for all MCQ batches to save 70b quota
 
 DIFFICULTY_INSTRUCTIONS = {
     "easy": (
@@ -288,7 +289,7 @@ def _generate_batched(
     client = get_client()
     sections = []
 
-    # Batched MCQ generation
+    # Batched MCQ generation — always uses MCQ_MODEL (8b, 500k TPD) to save 70b quota
     mcq_count = counts.get("MCQ", 0)
     marks_per_mcq = per_q_marks["MCQ"]
     if mcq_count > 0:
@@ -305,7 +306,7 @@ def _generate_batched(
                 start_num=current_num, used_questions=all_mcqs,
             )
             message = client.chat.completions.create(
-                model=model, max_tokens=3000,
+                model=MCQ_MODEL, max_tokens=3000,
                 messages=[{"role": "user", "content": prompt}],
             )
             raw = message.choices[0].message.content.strip()
@@ -422,6 +423,9 @@ def generate_paper(
         return result
 
     # Standard single-call path (MCQ only, ≤ 25 questions)
+    # Use MCQ_MODEL for pure-MCQ papers to save 70b TPD quota
+    only_mcq = set(question_types) == {"MCQ"}
+    call_model = MCQ_MODEL if only_mcq else active_model
     prompt = build_prompt(
         board, grade, subject, topics, total_marks, duration_minutes,
         question_types, difficulty, chunks, include_answer_key,
@@ -431,7 +435,7 @@ def generate_paper(
 
     client = get_client()
     message = client.chat.completions.create(
-        model=active_model, max_tokens=max_out,
+        model=call_model, max_tokens=max_out,
         messages=[{"role": "user", "content": prompt}],
     )
 
@@ -541,10 +545,12 @@ Return ONLY a JSON array:
 [{{"section_type":"{section_type}","question":"...","marks":{marks},"topic":"..."{(',' + answer_field) if answer_field else ''}}}]
 No markdown, no explanation."""
 
+    # MCQ replacements use the fast 8b model (saves 70b TPD quota)
+    call_model = MCQ_MODEL if section_type == "MCQ" else model
     try:
         result = client.chat.completions.create(
-            model=model,
-            max_tokens=min(count * 120, 3000),
+            model=call_model,
+            max_tokens=min(count * 150, 3000),
             messages=[{"role": "user", "content": prompt}],
         )
         raw = result.choices[0].message.content.strip()
