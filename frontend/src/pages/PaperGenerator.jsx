@@ -501,6 +501,7 @@ export default function PaperGenerator() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.subject) return toast.error("Please select a subject");
+    if (form.num_mcq !== "" && Number(form.num_mcq) > 25) return toast.error("MCQ limit is 25 questions");
 
     const effectiveMarks = computedMarks !== null ? computedMarks : form.total_marks;
     if (!effectiveMarks || effectiveMarks < 1) return toast.error("Total marks must be at least 1");
