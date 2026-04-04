@@ -3,9 +3,26 @@ import re
 from typing import List, Optional, Dict
 from core.config import settings
 from services.rag_service import retrieve_chunks, retrieve_example_questions, get_client
+from groq import RateLimitError as GroqRateLimitError
 
 MCQ_BATCH_SIZE = 25  # MCQ questions per LLM call
 MCQ_MODEL = "llama-3.1-8b-instant"  # 500k TPD — used for all MCQ batches to save 70b quota
+FALLBACK_MODEL = "llama-3.1-8b-instant"  # automatic fallback when primary model hits TPD limit
+
+
+def _groq_create(client, model: str, messages: list, max_tokens: int, timeout: int = 90):
+    """Call Groq with automatic fallback to FALLBACK_MODEL on rate limit (429)."""
+    try:
+        return client.chat.completions.create(
+            model=model, max_tokens=max_tokens, messages=messages, timeout=timeout,
+        )
+    except GroqRateLimitError:
+        if model == FALLBACK_MODEL:
+            raise
+        print(f"[GROQ] Rate limit on {model} — retrying with {FALLBACK_MODEL}", flush=True)
+        return client.chat.completions.create(
+            model=FALLBACK_MODEL, max_tokens=max_tokens, messages=messages, timeout=timeout,
+        )
 
 DIFFICULTY_INSTRUCTIONS = {
     "easy": (
@@ -305,10 +322,10 @@ def _generate_batched(
                 batch_size, marks_per_mcq, context_chunks, include_answer_key,
                 start_num=current_num, used_questions=all_mcqs,
             )
-            message = client.chat.completions.create(
-                model=MCQ_MODEL, max_tokens=3000,
+            message = _groq_create(
+                client, MCQ_MODEL,
                 messages=[{"role": "user", "content": prompt}],
-                timeout=60,
+                max_tokens=3000, timeout=60,
             )
             raw = message.choices[0].message.content.strip()
             arr_match = re.search(r'\[[\s\S]*\]', raw)
@@ -341,10 +358,10 @@ def _generate_batched(
             non_mcq_counts, per_q_marks,
         )
         max_out = min(max(2048, non_mcq_total * 80), 5500)
-        message = client.chat.completions.create(
-            model=model, max_tokens=max_out,
+        message = _groq_create(
+            client, model,
             messages=[{"role": "user", "content": prompt}],
-            timeout=90,
+            max_tokens=max_out, timeout=90,
         )
         raw = message.choices[0].message.content.strip()
         json_match = re.search(r'\{[\s\S]*\}', raw)
@@ -436,10 +453,10 @@ def generate_paper(
     max_out = min(max(2048, total_marks * 60), 5500)
 
     client = get_client()
-    message = client.chat.completions.create(
-        model=call_model, max_tokens=max_out,
+    message = _groq_create(
+        client, call_model,
         messages=[{"role": "user", "content": prompt}],
-        timeout=90,
+        max_tokens=max_out, timeout=90,
     )
 
     raw = message.choices[0].message.content.strip()
@@ -551,11 +568,10 @@ No markdown, no explanation."""
     # MCQ replacements use the fast 8b model (saves 70b TPD quota)
     call_model = MCQ_MODEL if section_type == "MCQ" else model
     try:
-        result = client.chat.completions.create(
-            model=call_model,
-            max_tokens=min(count * 150, 3000),
+        result = _groq_create(
+            client, call_model,
             messages=[{"role": "user", "content": prompt}],
-            timeout=60,
+            max_tokens=min(count * 150, 3000), timeout=60,
         )
         raw = result.choices[0].message.content.strip()
         arr_match = re.search(r'\[[\s\S]*\]', raw)
@@ -673,11 +689,10 @@ QUESTIONS:
 
         try:
             verify_max = min(max(1500, len(non_mcq_flat) * 80), 4000)
-            message = client.chat.completions.create(
-                model=VERIFY_MODEL,
-                max_tokens=verify_max,
+            message = _groq_create(
+                client, VERIFY_MODEL,
                 messages=[{"role": "user", "content": llm_prompt}],
-                timeout=60,
+                max_tokens=verify_max, timeout=60,
             )
             raw = message.choices[0].message.content.strip()
             arr_match = re.search(r'\[[\s\S]*\]', raw)
