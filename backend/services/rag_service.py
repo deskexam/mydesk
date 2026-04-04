@@ -84,6 +84,23 @@ def retrieve_chunks(
         docs = results.get("documents", [[]])[0]
         metas = results.get("metadatas", [[]])[0]
 
+        # Fallback for pre-migration chunks (no doc_type field in ChromaDB).
+        # If the strict filter returned nothing, retry without doc_type filter
+        # so existing content still works until migration completes.
+        if not docs and not include_question_papers:
+            fallback_filter: Dict = {"$and": [
+                {"board":   {"$eq": board}},
+                {"grade":   {"$eq": grade}},
+                {"subject": {"$eq": subject}},
+            ]}
+            results = collection.query(
+                query_texts=[query],
+                n_results=actual_n,
+                where=fallback_filter,
+            )
+            docs  = results.get("documents", [[]])[0]
+            metas = results.get("metadatas", [[]])[0]
+
         # Topic filtering — only apply when topics are specified and we got results
         if topics and docs:
             topic_lower = [t.lower() for t in topics]
