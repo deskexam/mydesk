@@ -4,7 +4,7 @@ from typing import List, Optional, Dict
 from core.config import settings
 from services.rag_service import retrieve_chunks, retrieve_example_questions, get_client
 
-MCQ_BATCH_SIZE = 50  # MCQ questions per LLM call
+MCQ_BATCH_SIZE = 25  # MCQ questions per LLM call
 
 DIFFICULTY_INSTRUCTIONS = {
     "easy": (
@@ -338,7 +338,7 @@ def _generate_batched(
             non_mcq_types, difficulty, context_chunks, include_answer_key,
             non_mcq_counts, per_q_marks,
         )
-        max_out = min(max(2048, non_mcq_total * 60), 5000)
+        max_out = min(max(2048, non_mcq_total * 80), 5500)
         message = client.chat.completions.create(
             model=model, max_tokens=max_out,
             messages=[{"role": "user", "content": prompt}],
@@ -409,15 +409,17 @@ def generate_paper(
     else:
         counts = _compute_counts(total_marks, question_types, per_q_marks)
 
-    # Batched path for large MCQ
-    if counts.get("MCQ", 0) > MCQ_BATCH_SIZE:
+    # Always use batched path when MCQ exists alongside other question types
+    # (prevents combined output from overflowing the token limit)
+    has_non_mcq = any(qt != "MCQ" for qt in question_types)
+    if counts.get("MCQ", 0) > MCQ_BATCH_SIZE or (counts.get("MCQ", 0) > 0 and has_non_mcq):
         return _generate_batched(
             board, grade, subject, topics, total_marks, duration_minutes,
             question_types, difficulty, include_answer_key,
             counts, chunks, active_model, per_q_marks,
         )
 
-    # Standard single-call path
+    # Standard single-call path (MCQ only, ≤ 25 questions)
     prompt = build_prompt(
         board, grade, subject, topics, total_marks, duration_minutes,
         question_types, difficulty, chunks, include_answer_key,
@@ -524,9 +526,11 @@ QUESTIONS:
 {json.dumps(flat, indent=2)[:12000]}"""
 
     try:
+        # Scale verify tokens with question count — each question needs ~60 tokens output
+        verify_max = min(max(2000, len(flat) * 60), 5000)
         message = client.chat.completions.create(
             model=model,
-            max_tokens=4000,
+            max_tokens=verify_max,
             messages=[{"role": "user", "content": prompt}],
         )
         raw = message.choices[0].message.content.strip()
