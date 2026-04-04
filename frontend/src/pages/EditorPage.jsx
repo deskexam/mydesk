@@ -267,7 +267,7 @@ const PAGE_BOTTOM_MARGIN = 18;  // px — breathing room above footer
 // The `containerWidth` prop is the live pixel width of the preview panel.
 
 function PagedPreview({ paperData, containerWidth, showAnswers = false }) {
-  const wrapperRef  = useRef(null);
+  const measureRef  = useRef(null);   // hidden full-height div for measurement
   const [pageBreaks, setPageBreaks] = useState([0]);
 
   // Derive display dimensions from available width (fill the container with 24 px padding each side)
@@ -280,7 +280,7 @@ function PagedPreview({ paperData, containerWidth, showAnswers = false }) {
   const contentNaturalH  = Math.round(contentUsableH / scale);
 
   useLayoutEffect(() => {
-    const wrapper = wrapperRef.current;
+    const wrapper = measureRef.current;
     if (!wrapper || wrapper.scrollHeight === 0) return;
 
     const naturalH = wrapper.scrollHeight;
@@ -322,6 +322,12 @@ function PagedPreview({ paperData, containerWidth, showAnswers = false }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+
+      {/* Hidden full-height render used only for measurement — never visible */}
+      <div style={{ position: 'fixed', top: 0, left: -9999, width: A4_W_PX, visibility: 'hidden', pointerEvents: 'none', zIndex: -1 }} ref={measureRef}>
+        <PdfPreview paperData={paperData} showAnswers={showAnswers} />
+      </div>
+
       {pageBreaks.map((startNaturalPx, i) => {
         const topMargin = i > 0 ? PAGE_TOP_MARGIN : 0;
         const nextBreakNatural = i < pageBreaks.length - 1 ? pageBreaks[i + 1] : null;
@@ -343,7 +349,6 @@ function PagedPreview({ paperData, containerWidth, showAnswers = false }) {
             }}>
               {/* Scaled content */}
               <div
-                ref={i === 0 ? wrapperRef : null}
                 style={{
                   position: 'absolute',
                   top: -(startNaturalPx * scale) + topMargin,
