@@ -51,9 +51,30 @@ async def generate_paper_endpoint(
             marks_per_long=paper_request.marks_per_long or 5,
         )
 
-        # AI quality check — remove duplicates, fix/remove bad questions
+        # AI quality check — remove duplicates, fix/remove bad questions,
+        # regenerate replacements for any removed questions
         active_model = paper_request.__dict__.get("model") or settings.groq_model
-        paper_data = verify_and_clean_paper(paper_data, active_model)
+        marks_per = {
+            "MCQ":         paper_request.marks_per_mcq or 1,
+            "short_answer": paper_request.marks_per_short or 2,
+            "long_answer":  paper_request.marks_per_long or 5,
+        }
+        expected = {}
+        if paper_request.num_mcq:   expected["MCQ"]          = paper_request.num_mcq
+        if paper_request.num_short: expected["short_answer"]  = paper_request.num_short
+        if paper_request.num_long:  expected["long_answer"]   = paper_request.num_long
+
+        paper_data = verify_and_clean_paper(
+            paper_data,
+            active_model,
+            context_chunks=paper_data.get("_context_chunks", []),
+            expected_counts=expected or None,
+            per_q_marks=marks_per,
+            include_answer_key=paper_request.include_answer_key,
+        )
+
+        # Strip internal-only fields before saving
+        paper_data.pop("_context_chunks", None)
 
         # Convert to MongoDB format
         paper_doc = {

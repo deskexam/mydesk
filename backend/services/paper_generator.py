@@ -413,11 +413,13 @@ def generate_paper(
     # (prevents combined output from overflowing the token limit)
     has_non_mcq = any(qt != "MCQ" for qt in question_types)
     if counts.get("MCQ", 0) > MCQ_BATCH_SIZE or (counts.get("MCQ", 0) > 0 and has_non_mcq):
-        return _generate_batched(
+        result = _generate_batched(
             board, grade, subject, topics, total_marks, duration_minutes,
             question_types, difficulty, include_answer_key,
             counts, chunks, active_model, per_q_marks,
         )
+        result["_context_chunks"] = chunks
+        return result
 
     # Standard single-call path (MCQ only, ≤ 25 questions)
     prompt = build_prompt(
@@ -469,67 +471,166 @@ def generate_paper(
         paper["total_marks"] = sum(
             q.get("marks", 1) for s in paper.get("sections", []) for q in s.get("questions", [])
         )
+        paper["_context_chunks"] = chunks
         return paper
 
+    paper["_context_chunks"] = chunks
     return fix_marks(paper, total_marks)
 
 
-def verify_and_clean_paper(paper: dict, model: str) -> dict:
+def _regenerate_replacements(
+    section_type: str, count: int, marks: int,
+    board: str, grade: str, subject: str,
+    topics: List[str], difficulty: str,
+    include_answer_key: bool,
+    context_chunks: List[str],
+    existing_questions: List[str],
+    model: str,
+) -> List[dict]:
+    """Generate replacement questions for ones removed during verify pass."""
+    if count <= 0:
+        return []
+
+    client = get_client()
+    context = "\n\n---\n\n".join(c[:400] for c in context_chunks) if context_chunks else "Use your syllabus knowledge."
+    topics_str = ", ".join(topics) if topics else "all topics"
+    diff_detail = DIFFICULTY_INSTRUCTIONS.get(difficulty, '')
+    system_role = DIFFICULTY_SYSTEM_ROLE.get(difficulty, "You are an expert exam setter.")
+
+    avoid_note = ""
+    if existing_questions:
+        avoid_note = (
+            "\n\nDO NOT REPEAT OR REPHRASE any of these existing questions:\n"
+            + "\n".join(f"- {q}" for q in existing_questions[-20:])
+        )
+
+    answer_field = '"answer": "correct answer here",' if include_answer_key else ""
+    answer_instruction = (
+        'Include the "answer" field with the correct answer.'
+        if include_answer_key else 'Do NOT include an "answer" field.'
+    )
+
+    if section_type == "MCQ":
+        prompt = f"""{system_role}
+Generate exactly {count} replacement MCQ questions for {board} Board, Grade {grade}, {subject}.
+Topics: {topics_str}
+Difficulty: {difficulty.upper()} — {diff_detail}
+Each MCQ is worth {marks} mark(s).
+{answer_instruction}
+{avoid_note}
+
+CONTEXT:
+{context}
+
+Return ONLY a JSON array:
+[{{"section_type":"MCQ","question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"marks":{marks},"topic":"..."{(',' + answer_field) if answer_field else ''}}}]
+No markdown, no explanation."""
+    else:
+        prompt = f"""{system_role}
+Generate exactly {count} replacement {section_type.replace('_', ' ')} questions for {board} Board, Grade {grade}, {subject}.
+Topics: {topics_str}
+Difficulty: {difficulty.upper()} — {diff_detail}
+Each question is worth {marks} mark(s).
+{answer_instruction}
+{avoid_note}
+
+CONTEXT:
+{context}
+
+Return ONLY a JSON array:
+[{{"section_type":"{section_type}","question":"...","marks":{marks},"topic":"..."{(',' + answer_field) if answer_field else ''}}}]
+No markdown, no explanation."""
+
+    try:
+        result = client.chat.completions.create(
+            model=model,
+            max_tokens=min(count * 120, 3000),
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = result.choices[0].message.content.strip()
+        arr_match = re.search(r'\[[\s\S]*\]', raw)
+        if arr_match:
+            return json.loads(arr_match.group())
+    except Exception as e:
+        print(f"[VERIFY] Replacement generation failed for {section_type}: {e}", flush=True)
+    return []
+
+
+def verify_and_clean_paper(
+    paper: dict,
+    model: str,
+    context_chunks: Optional[List[str]] = None,
+    expected_counts: Optional[Dict[str, int]] = None,
+    per_q_marks: Optional[Dict[str, int]] = None,
+    include_answer_key: bool = False,
+) -> dict:
     """
-    Pass the generated paper through the LLM for a second-pass QA:
-    - Remove duplicate or near-duplicate questions
-    - Fix MCQ with missing / fewer than 4 options
-    - Remove questions that are incomplete, ambiguous, or inappropriate
-    - Return the cleaned paper with the same structure
+    Second-pass QA:
+    - Remove duplicates, incomplete, or bad questions
+    - Verify answer correctness (sets answer_verified flag)
+    - Regenerate replacements for any removed questions
+      so the final count matches what the user requested.
+
+    Uses llama-3.1-8b-instant for verify (higher TPM, sufficient for QA).
+    Uses the generation model for replacements (needs quality).
     """
+    VERIFY_MODEL = "llama-3.1-8b-instant"
+
     client = get_client()
     sections = paper.get("sections", [])
     if not sections:
         return paper
 
-    # Flatten to a numbered list for the LLM
+    # Track original counts per section type for replacement
+    original_counts: Dict[str, int] = {}
+    for sec in sections:
+        stype = sec.get("type", "")
+        original_counts[stype] = len(sec.get("questions", []))
+
+    # Use caller-provided expected counts if available (more accurate)
+    target_counts = expected_counts or original_counts
+
     flat = []
     for sec in sections:
         for q in sec.get("questions", []):
             flat.append({
                 "section_type": sec.get("type"),
-                "question": q.get("question", ""),
-                "options": q.get("options"),
-                "answer": q.get("answer"),
-                "marks": q.get("marks", 1),
-                "topic": q.get("topic", ""),
+                "question":     q.get("question", ""),
+                "options":      q.get("options"),
+                "answer":       q.get("answer"),
+                "marks":        q.get("marks", 1),
+                "topic":        q.get("topic", ""),
             })
 
     has_answers = any(q.get("answer") for q in flat)
     answer_instructions = """
 7. For every question that has an "answer" field:
-   - Verify the answer is FACTUALLY CORRECT for the given question.
-   - For MCQ: confirm the answer matches one of the options and is actually correct.
-   - If the answer is correct and you are confident, set "answer_verified": true.
-   - If the answer is wrong or you are unsure, CORRECT it and set "answer_verified": false.
-   - Never leave a wrong answer — fix it or remove the answer field.
+   - Verify the answer is FACTUALLY CORRECT.
+   - For MCQ: confirm the answer matches one of the options and is correct.
+   - If correct and confident → set "answer_verified": true.
+   - If wrong or unsure → CORRECT it and set "answer_verified": false.
+   - Never leave a wrong answer — fix it or flag it.
 """ if has_answers else ""
 
-    prompt = f"""You are a strict exam quality-control reviewer for a {paper.get('board', '')} Board, Grade {paper.get('grade', '')}, {paper.get('subject', '')} paper.
+    prompt = f"""You are a strict exam quality-control reviewer for {paper.get('board', '')} Board, Grade {paper.get('grade', '')}, {paper.get('subject', '')} paper.
 
-Below is a list of generated exam questions (JSON array). Your job is to:
+Review the questions below and:
 1. REMOVE any duplicate or near-duplicate questions (keep the better one).
 2. REMOVE any question that is incomplete, poorly worded, or has missing text.
-3. For MCQ: REMOVE any question that does not have exactly 4 distinct options (A, B, C, D). Do NOT try to fix them — just remove.
-4. REMOVE any question where the correct answer is not among the options (for MCQ).
+3. For MCQ: REMOVE any question without exactly 4 distinct options (A, B, C, D).
+4. REMOVE any question where the correct answer is not among the options.
 5. REMOVE any off-topic, inappropriate, or factually incorrect questions.
 6. Keep all valid questions unchanged — do not rephrase or alter them.
 {answer_instructions}
-Return ONLY a valid JSON array of the cleaned questions (same structure as input, with "answer_verified" field added where answers exist). No markdown, no explanation.
+Return ONLY a valid JSON array. No markdown, no explanation.
 
 QUESTIONS:
 {json.dumps(flat, indent=2)[:12000]}"""
 
     try:
-        # Scale verify tokens with question count — each question needs ~60 tokens output
         verify_max = min(max(2000, len(flat) * 60), 5000)
         message = client.chat.completions.create(
-            model=model,
+            model=VERIFY_MODEL,
             max_tokens=verify_max,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -540,18 +641,53 @@ QUESTIONS:
 
         cleaned_flat = json.loads(arr_match.group())
 
-        # Rebuild sections from the cleaned flat list
+        # Count how many were removed per section type
+        cleaned_counts: Dict[str, int] = {}
+        for q in cleaned_flat:
+            stype = q.get("section_type", "short_answer")
+            cleaned_counts[stype] = cleaned_counts.get(stype, 0) + 1
+
+        # Regenerate replacements for removed questions
+        existing_qs = [q.get("question", "") for q in cleaned_flat]
+        topics = paper.get("topics_covered", [])
+        board  = paper.get("board", "")
+        grade  = paper.get("grade", "")
+        subject = paper.get("subject", "")
+        difficulty = paper.get("difficulty", "medium")
+
+        for stype, target in target_counts.items():
+            got = cleaned_counts.get(stype, 0)
+            shortage = target - got
+            if shortage > 0:
+                print(f"[VERIFY] {shortage} {stype} question(s) removed — regenerating replacements", flush=True)
+                marks = (per_q_marks or {}).get(stype, 1)
+                replacements = _regenerate_replacements(
+                    section_type=stype,
+                    count=shortage,
+                    marks=marks,
+                    board=board, grade=grade, subject=subject,
+                    topics=topics, difficulty=difficulty,
+                    include_answer_key=include_answer_key,
+                    context_chunks=context_chunks or [],
+                    existing_questions=existing_qs,
+                    model=model,
+                )
+                for r in replacements:
+                    r["section_type"] = stype
+                cleaned_flat.extend(replacements)
+                existing_qs.extend(r.get("question", "") for r in replacements)
+
+        # Rebuild sections
         sections_map = {}
         for q in cleaned_flat:
             stype = q.get("section_type", "short_answer")
             if stype not in sections_map:
-                # Preserve original section metadata
                 orig = next((s for s in sections if s.get("type") == stype), {})
                 sections_map[stype] = {
                     "section_name": orig.get("section_name", stype),
-                    "type": stype,
+                    "type":         stype,
                     "instructions": orig.get("instructions", ""),
-                    "questions": [],
+                    "questions":    [],
                 }
             q_clean = {k: v for k, v in q.items() if k != "section_type"}
             sections_map[stype]["questions"].append(q_clean)
@@ -560,8 +696,10 @@ QUESTIONS:
         paper["total_marks"] = sum(
             q.get("marks", 1) for s in paper["sections"] for q in s.get("questions", [])
         )
-    except Exception:
-        pass
+        print(f"[VERIFY] Final counts: { {k: len(v['questions']) for k, v in sections_map.items()} }", flush=True)
+
+    except Exception as e:
+        print(f"[VERIFY] Verify pass failed: {e} — returning original paper", flush=True)
 
     return paper
 
