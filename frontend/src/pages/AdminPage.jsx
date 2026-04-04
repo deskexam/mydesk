@@ -12,17 +12,17 @@ const GRADES = ['8', '9', '10', '11', '12'];
 const SUBJECTS_BY_GRADE = {
   '8': {
     'CBSE':        ['Mathematics', 'Science', 'English', 'History', 'Geography', 'Civics'],
-    'ICSE':        ['Mathematics', 'Science', 'English', 'History & Civics', 'Geography'],
+    'ICSE':        ['Mathematics', 'Physics', 'Chemistry', 'English'],
     'Maharashtra': ['Mathematics', 'Science & Technology', 'English', 'History & Political Science', 'Geography'],
   },
   '9': {
     'CBSE':        ['Mathematics', 'Science', 'English', 'History', 'Geography', 'Economics'],
-    'ICSE':        ['Mathematics', 'Science', 'English', 'History & Civics', 'Geography'],
+    'ICSE':        ['Mathematics', 'Physics', 'Chemistry', 'English'],
     'Maharashtra': ['Mathematics', 'Science & Technology', 'English', 'History & Political Science', 'Geography'],
   },
   '10': {
     'CBSE':        ['Mathematics', 'Science', 'English', 'History', 'Geography'],
-    'ICSE':        ['Mathematics', 'Science', 'English', 'History & Civics', 'Geography'],
+    'ICSE':        ['Mathematics', 'Physics', 'Chemistry', 'English'],
     'Maharashtra': ['Mathematics', 'Science & Technology', 'English', 'History & Political Science', 'Geography'],
   },
   '11': {
