@@ -12,6 +12,75 @@ from services.rag_service import index_chunks, delete_doc_chunks
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
+# Predefined curriculum — shown even if no documents are uploaded for that board/grade.
+# subjects/topics are always available for paper generation using AI knowledge.
+CURRICULUM: dict = {
+    "CBSE": {
+        grades: {
+            "Mathematics": [], "Science": [], "English": [],
+            "Social Science": [], "Hindi": [],
+        }
+        for grades in [str(g) for g in range(1, 13)]
+    },
+    "ICSE": {
+        **{
+            str(g): {
+                "Mathematics": [], "English": [], "Hindi": [],
+                "History & Civics": [], "Geography": [],
+            }
+            for g in range(1, 8)
+        },
+        **{
+            str(g): {
+                "Mathematics": [], "Physics": [], "Chemistry": [],
+                "Biology": [], "English": [], "Hindi": [],
+                "History & Civics": [], "Geography": [],
+            }
+            for g in range(8, 11)
+        },
+        "11": {
+            "Mathematics": [], "Physics": [], "Chemistry": [],
+            "Biology": [], "English": [], "Economics": [], "Commerce": [],
+        },
+        "12": {
+            "Mathematics": [], "Physics": [], "Chemistry": [],
+            "Biology": [], "English": [], "Economics": [], "Commerce": [],
+        },
+    },
+    "State Board": {
+        str(g): {
+            "Mathematics": [], "Science": [], "English": [],
+            "Social Studies": [], "Hindi": [],
+        }
+        for g in range(1, 13)
+    },
+}
+
+
+def _curriculum_boards() -> List[str]:
+    return sorted(CURRICULUM.keys())
+
+
+def _curriculum_grades(board: Optional[str]) -> List[str]:
+    if board and board in CURRICULUM:
+        return sorted(CURRICULUM[board].keys(), key=lambda x: int(x) if x.isdigit() else x)
+    grades = set()
+    for b in CURRICULUM.values():
+        grades.update(b.keys())
+    return sorted(grades, key=lambda x: int(x) if x.isdigit() else x)
+
+
+def _curriculum_subjects(board: Optional[str], grade: Optional[str]) -> List[str]:
+    subjects: set = set()
+    boards = [board] if board and board in CURRICULUM else list(CURRICULUM.keys())
+    for b in boards:
+        if grade and grade in CURRICULUM[b]:
+            subjects.update(CURRICULUM[b][grade].keys())
+        elif not grade:
+            for g_data in CURRICULUM[b].values():
+                subjects.update(g_data.keys())
+    return sorted(subjects)
+
 
 def serialize_doc(doc: dict) -> dict:
     doc["id"] = str(doc.pop("_id"))
@@ -169,8 +238,9 @@ async def delete_document(doc_id: str, admin: dict = Depends(require_admin)):
 @router.get("/meta/boards")
 async def get_boards(_: dict = Depends(get_current_user)):
     db = get_db()
-    boards = await db.documents.distinct("board")
-    return sorted(boards)
+    db_boards = await db.documents.distinct("board")
+    merged = sorted(set(db_boards) | set(_curriculum_boards()))
+    return merged
 
 
 @router.get("/meta/grades")
@@ -179,8 +249,12 @@ async def get_grades(board: Optional[str] = None, _: dict = Depends(get_current_
     query = {}
     if board:
         query["board"] = board
-    grades = await db.documents.distinct("grade", query)
-    return sorted(grades, key=lambda x: int(x) if x.isdigit() else x)
+    db_grades = await db.documents.distinct("grade", query)
+    merged = sorted(
+        set(db_grades) | set(_curriculum_grades(board)),
+        key=lambda x: int(x) if x.isdigit() else x,
+    )
+    return merged
 
 
 @router.get("/meta/subjects")
@@ -191,8 +265,9 @@ async def get_subjects(board: Optional[str] = None, grade: Optional[str] = None,
         query["board"] = board
     if grade:
         query["grade"] = grade
-    subjects = await db.documents.distinct("subject", query)
-    return subjects
+    db_subjects = await db.documents.distinct("subject", query)
+    merged = sorted(set(db_subjects) | set(_curriculum_subjects(board, grade)))
+    return merged
 
 
 @router.get("/meta/topics")
