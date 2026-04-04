@@ -88,6 +88,10 @@ async def generate_paper_endpoint(
 
         return paper_doc
 
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         import traceback
         traceback.print_exc()
