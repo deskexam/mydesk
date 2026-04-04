@@ -19,18 +19,19 @@ def index_chunks(doc_id: str, chunks: List[Dict], metadata: Dict, doc_type: str 
     documents = [c["text"] for c in chunks]
     metadatas = [
         {
-            "doc_id": doc_id,
-            "board": metadata.get("board", ""),
-            "grade": metadata.get("grade", ""),
-            "subject": metadata.get("subject", ""),
-            "topics": ",".join(metadata.get("topics", [])),
-            "title": metadata.get("title", ""),
+            "doc_id":      doc_id,
+            "board":       metadata.get("board", ""),
+            "grade":       metadata.get("grade", ""),
+            "subject":     metadata.get("subject", ""),
+            "topics":      ",".join(metadata.get("topics", [])),
+            "title":       metadata.get("title", ""),
             "chunk_index": c["chunk_index"],
-            "doc_type": doc_type,
+            "doc_type":    doc_type,
         }
         for c in chunks
     ]
     collection.add(ids=ids, documents=documents, metadatas=metadatas)
+    print(f"[RAG] Indexed {len(chunks)} chunks for doc_id={doc_id} type={doc_type}", flush=True)
 
 
 def delete_doc_chunks(doc_id: str):
@@ -38,6 +39,23 @@ def delete_doc_chunks(doc_id: str):
     results = collection.get(where={"doc_id": doc_id})
     if results["ids"]:
         collection.delete(ids=results["ids"])
+        print(f"[RAG] Deleted {len(results['ids'])} old chunks for doc_id={doc_id}", flush=True)
+
+
+def wipe_all_chunks():
+    """
+    Delete every chunk from ChromaDB regardless of doc_id.
+    Used before a fresh migration to clear out pre-migration
+    word-based chunks that have no doc_type field.
+    Returns the count of deleted entries.
+    """
+    collection = get_collection()
+    results = collection.get()
+    ids = results.get("ids", [])
+    if ids:
+        collection.delete(ids=ids)
+    print(f"[RAG] Wiped {len(ids)} total chunks from ChromaDB", flush=True)
+    return len(ids)
 
 
 def retrieve_chunks(
@@ -49,22 +67,13 @@ def retrieve_chunks(
     n_results: int = 6,
     include_question_papers: bool = False,
 ) -> List[str]:
-    """
-    Retrieve relevant chunks from ChromaDB.
-
-    By default only returns textbook chunks (doc_type='textbook').
-    Pass include_question_papers=True to also include past exam questions
-    (useful for difficulty calibration on hard papers).
-    """
     collection = get_collection()
 
-    # Build base filter
     base_conditions = [
-        {"board": {"$eq": board}},
-        {"grade": {"$eq": grade}},
-        {"subject": {"$eq": subject}},
+        {"board":    {"$eq": board}},
+        {"grade":    {"$eq": grade}},
+        {"subject":  {"$eq": subject}},
     ]
-
     if not include_question_papers:
         base_conditions.append({"doc_type": {"$eq": "textbook"}})
 
@@ -73,6 +82,7 @@ def retrieve_chunks(
     try:
         total = collection.count()
         if total == 0:
+            print(f"[RAG] Vector DB is empty — run migration first.", flush=True)
             return []
 
         actual_n = min(n_results, total)
@@ -81,41 +91,41 @@ def retrieve_chunks(
             n_results=actual_n,
             where=where_filter,
         )
-        docs = results.get("documents", [[]])[0]
+        docs  = results.get("documents", [[]])[0]
         metas = results.get("metadatas", [[]])[0]
 
-        # Fallback for pre-migration chunks (no doc_type field in ChromaDB).
-        # If the strict filter returned nothing, retry without doc_type filter
-        # so existing content still works until migration completes.
-        if not docs and not include_question_papers:
-            fallback_filter: Dict = {"$and": [
-                {"board":   {"$eq": board}},
-                {"grade":   {"$eq": grade}},
-                {"subject": {"$eq": subject}},
-            ]}
-            results = collection.query(
-                query_texts=[query],
-                n_results=actual_n,
-                where=fallback_filter,
+        if not docs:
+            print(
+                f"[RAG] No chunks found for board={board} grade={grade} subject={subject}. "
+                f"Migration may not have run yet for this document.",
+                flush=True,
             )
-            docs  = results.get("documents", [[]])[0]
-            metas = results.get("metadatas", [[]])[0]
+            return []
 
-        # Topic filtering — only apply when topics are specified and we got results
+        # Topic filtering
         if topics and docs:
             topic_lower = [t.lower() for t in topics]
             filtered = [
                 doc for doc, meta in zip(docs, metas)
                 if any(t in meta.get("topics", "").lower() for t in topic_lower)
             ]
-            # Only use filtered results if we got enough; otherwise fall back to unfiltered
             if len(filtered) >= min(3, len(docs)):
+                print(
+                    f"[RAG] Retrieved {len(filtered)} topic-filtered chunks "
+                    f"(board={board} grade={grade} subject={subject})",
+                    flush=True,
+                )
                 return filtered
 
+        print(
+            f"[RAG] Retrieved {len(docs)} chunks from vector DB "
+            f"(board={board} grade={grade} subject={subject})",
+            flush=True,
+        )
         return docs
 
     except Exception as e:
-        print(f"[RAG] retrieve_chunks error (board={board}, grade={grade}, subject={subject}): {e}", flush=True)
+        print(f"[RAG] retrieve_chunks error (board={board} grade={grade} subject={subject}): {e}", flush=True)
         return []
 
 
@@ -126,19 +136,15 @@ def retrieve_example_questions(
     topics: Optional[List[str]] = None,
     n_results: int = 4,
 ) -> List[str]:
-    """
-    Retrieve past exam question chunks specifically for difficulty calibration.
-    Only returns question_paper doc_type chunks.
-    """
+    """Retrieve past exam question chunks for hard difficulty calibration."""
     collection = get_collection()
 
-    conditions = [
-        {"board": {"$eq": board}},
-        {"grade": {"$eq": grade}},
-        {"subject": {"$eq": subject}},
+    where_filter = {"$and": [
+        {"board":    {"$eq": board}},
+        {"grade":    {"$eq": grade}},
+        {"subject":  {"$eq": subject}},
         {"doc_type": {"$eq": "question_paper"}},
-    ]
-    where_filter = {"$and": conditions}
+    ]}
 
     try:
         total = collection.count()
@@ -150,6 +156,9 @@ def retrieve_example_questions(
             n_results=actual_n,
             where=where_filter,
         )
-        return results.get("documents", [[]])[0]
+        docs = results.get("documents", [[]])[0]
+        if docs:
+            print(f"[RAG] Retrieved {len(docs)} past exam question chunks for hard difficulty", flush=True)
+        return docs
     except Exception:
         return []

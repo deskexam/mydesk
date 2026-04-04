@@ -27,7 +27,7 @@ from bson import ObjectId
 from core.database import get_db
 from core.config import settings
 from services.pdf_service import extract_text_chunks
-from services.rag_service import index_chunks, delete_doc_chunks
+from services.rag_service import index_chunks, delete_doc_chunks, wipe_all_chunks
 
 router = APIRouter(prefix="/api/admin", tags=["admin-migration"])
 
@@ -285,6 +285,24 @@ async def migration_status(
         "needs_reupload": _migration_state["needs_reupload"],
         "log":            _migration_state["log"][-50:],
     }
+
+
+@router.post("/wipe-chromadb", status_code=200)
+async def wipe_chromadb(
+    x_admin_secret: str = Header(..., alias="x-admin-secret"),
+):
+    """
+    Delete ALL chunks from ChromaDB so migration can re-index cleanly.
+    Run this BEFORE starting the migration when old pre-migration chunks exist.
+    """
+    if not settings.admin_secret or x_admin_secret != settings.admin_secret:
+        raise HTTPException(status_code=403, detail="Invalid admin secret.")
+
+    if _migration_state["running"]:
+        raise HTTPException(status_code=409, detail="Migration is running — stop it before wiping.")
+
+    count = wipe_all_chunks()
+    return {"message": f"Wiped {count} chunks from ChromaDB. Now run the migration to re-index."}
 
 
 @router.get("/migrate-rag/needs-reupload")
