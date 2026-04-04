@@ -308,6 +308,7 @@ def _generate_batched(
             message = client.chat.completions.create(
                 model=MCQ_MODEL, max_tokens=3000,
                 messages=[{"role": "user", "content": prompt}],
+                timeout=60,
             )
             raw = message.choices[0].message.content.strip()
             arr_match = re.search(r'\[[\s\S]*\]', raw)
@@ -343,6 +344,7 @@ def _generate_batched(
         message = client.chat.completions.create(
             model=model, max_tokens=max_out,
             messages=[{"role": "user", "content": prompt}],
+            timeout=90,
         )
         raw = message.choices[0].message.content.strip()
         json_match = re.search(r'\{[\s\S]*\}', raw)
@@ -437,6 +439,7 @@ def generate_paper(
     message = client.chat.completions.create(
         model=call_model, max_tokens=max_out,
         messages=[{"role": "user", "content": prompt}],
+        timeout=90,
     )
 
     raw = message.choices[0].message.content.strip()
@@ -552,6 +555,7 @@ No markdown, no explanation."""
             model=call_model,
             max_tokens=min(count * 150, 3000),
             messages=[{"role": "user", "content": prompt}],
+            timeout=60,
         )
         raw = result.choices[0].message.content.strip()
         arr_match = re.search(r'\[[\s\S]*\]', raw)
@@ -673,6 +677,7 @@ QUESTIONS:
                 model=VERIFY_MODEL,
                 max_tokens=verify_max,
                 messages=[{"role": "user", "content": llm_prompt}],
+                timeout=60,
             )
             raw = message.choices[0].message.content.strip()
             arr_match = re.search(r'\[[\s\S]*\]', raw)
