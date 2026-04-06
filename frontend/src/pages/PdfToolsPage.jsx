@@ -6,8 +6,8 @@ import {
   Plus, Trash2, ChevronUp, ChevronDown, ArrowLeft,
 } from 'lucide-react';
 import Navbar from '../components/auth/Navbar';
-import LatexFormatModal from '../components/editor/LatexFormatModal';
 import LatexDocEditor from '../components/editor/LatexDocEditor';
+import { generateLatex, downloadLatexFile } from '../lib/latexUtils';
 import PaywallModal from '../components/payment/PaywallModal';
 import { useAuth } from '../hooks/useAuth';
 
@@ -41,7 +41,6 @@ export default function PdfToolsPage() {
   const [aiProcessing, setAiProcessing] = useState(false);
   const [aiStatus, setAiStatus] = useState('');
   const [result, setResult] = useState(null);
-  const [showLatexModal, setShowLatexModal] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [pdfError, setPdfError] = useState('');
   // Slide editor state
@@ -87,6 +86,20 @@ export default function PdfToolsPage() {
     if (!result || !result.content) return;
     const ext = result.type === 'latex-code' ? 'tex' : 'txt';
     downloadText(result.content, `${file?.name?.replace('.pdf', '') || 'output'}.${ext}`);
+  };
+
+  const handleLatexDownload = async () => {
+    if (!canDownload()) { setShowPaywall(true); return; }
+    if (!result?.parsed?.questions) return;
+    const paperData = {
+      title: file?.name?.replace(/\.pdf$/i, '') || 'Question Paper',
+      metadata: { instituteName: '', teacherName: '', subject: 'Subject', className: 'Class X', maxMarks: 80, timeDuration: '3 Hours' },
+      questions: result.parsed.questions,
+    };
+    const tex = generateLatex(paperData, 'cbse');
+    const safeName = (paperData.title).replace(/[^a-z0-9]/gi, '-').toLowerCase();
+    downloadLatexFile(tex, `${safeName}.tex`);
+    await refreshProfile();
   };
 
   const resetAll = () => {
@@ -768,10 +781,10 @@ export default function PdfToolsPage() {
                       <FileText className="w-4 h-4" /> Open All in Editor →
                     </button>
                     <button
-                      onClick={() => setShowLatexModal(true)}
+                      onClick={handleLatexDownload}
                       className="flex items-center gap-1.5 px-4 py-2.5 text-sm border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-all"
                     >
-                      <FileCode className="w-4 h-4" /> Get LaTeX File
+                      <FileCode className="w-4 h-4" /> Download LaTeX
                     </button>
                     <button onClick={resetAll} className="text-gray-400 text-sm py-2 px-3 rounded-lg hover:bg-gray-50 flex items-center gap-1">
                       <RefreshCw className="w-3 h-3" /> Reset
@@ -896,23 +909,6 @@ export default function PdfToolsPage() {
         </div>
       </div>
 
-      {showLatexModal && result?.type === 'parsed-questions' && (
-        <LatexFormatModal
-          paperData={{
-            title: file?.name?.replace('.pdf', '') || 'Question Paper',
-            metadata: {
-              instituteName: '',
-              teacherName: '',
-              subject: 'Subject',
-              className: 'Class X',
-              maxMarks: 80,
-              timeDuration: '3 Hours',
-            },
-            questions: result.parsed.questions,
-          }}
-          onClose={() => setShowLatexModal(false)}
-        />
-      )}
 
       {showLatexEditor && result?.type === 'latex-code' && (
         <LatexDocEditor
