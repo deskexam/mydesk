@@ -1161,7 +1161,7 @@ async function verifyPaperQuality(paperData) {
     if (valid.length < 2)  { issues.push(`❌ Q${index + 1}: Needs at least 2 options`); isProfessional = false; }
     const empty = q.options.filter(o => !o || !o.trim());
     if (empty.length > 0)  { issues.push(`❌ Q${index + 1}: Empty options`); isProfessional = false; }
-    if (q.answer && !['A','B','C','D'].includes(q.answer.toUpperCase())) {
+    if (q.answer && !['A','B','C','D'].includes(q.answer.trim()[0]?.toUpperCase())) {
       issues.push(`❌ Q${index + 1}: Invalid answer key`); isProfessional = false;
     }
   });

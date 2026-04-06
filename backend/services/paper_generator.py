@@ -377,6 +377,12 @@ def _generate_batched(
             except json.JSONDecodeError:
                 pass
 
+    # Enforce section order: MCQ → short_answer → long_answer
+    SECTION_ORDER = ["MCQ", "short_answer", "long_answer"]
+    sections_by_type = {s["type"]: s for s in sections}
+    sections = [sections_by_type[k] for k in SECTION_ORDER if k in sections_by_type]
+    sections += [s for s in sections_by_type.values() if s["type"] not in SECTION_ORDER]
+
     paper = {
         "board": board, "grade": grade, "subject": subject,
         "topics_covered": topics or [],
@@ -763,7 +769,11 @@ QUESTIONS:
             q_clean = {k: v for k, v in q.items() if k != "section_type"}
             sections_map[stype]["questions"].append(q_clean)
 
-        paper["sections"] = list(sections_map.values())
+        # Always enforce section order: MCQ → short_answer → long_answer
+        SECTION_ORDER = ["MCQ", "short_answer", "long_answer"]
+        ordered = [sections_map[k] for k in SECTION_ORDER if k in sections_map]
+        ordered += [v for k, v in sections_map.items() if k not in SECTION_ORDER]
+        paper["sections"] = ordered
         paper["total_marks"] = sum(
             q.get("marks", 1) for s in paper["sections"] for q in s.get("questions", [])
         )
