@@ -139,6 +139,7 @@ const BOARDS = ["CBSE", "ICSE", "Maharashtra"];
 const GRADES = ["8", "9", "10", "11", "12"];
 const DIFFICULTIES = ["easy", "medium", "hard"];
 const DURATIONS = [
+  { value: 30,  label: "30 minutes" },
   { value: 60,  label: "1 hour" },
   { value: 90,  label: "1.5 hours" },
   { value: 120, label: "2 hours" },
