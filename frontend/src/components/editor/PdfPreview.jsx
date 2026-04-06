@@ -74,7 +74,6 @@ export default function PdfPreview({ paperData, showAnswers = false }) {
   }
 
   function renderQuestion(q, qi = 0) {
-    const globalIdx = questions.indexOf(q);
     const boxed = layout === 'boxed';
     const wrapStyle = boxed
       ? { marginBottom: qGap, display: 'flex', gap: 8, border: `1px solid ${accentColor}33`, borderLeft: `3px solid ${accentColor}`, borderRadius: 5, padding: '8px 10px', background: '#fafbff' }
@@ -82,7 +81,7 @@ export default function PdfPreview({ paperData, showAnswers = false }) {
 
     return (
       <div key={q.id || qi} className="pdf-question" style={wrapStyle}>
-        <div style={{ minWidth: 22, fontWeight: 'bold', fontSize: qFontSize }}>{globalIdx + 1}.</div>
+        <div style={{ minWidth: 22, fontWeight: 'bold', fontSize: qFontSize }}>{qi + 1}.</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: qFontSize, lineHeight: qLineHeight, marginBottom: 6 }}
             dangerouslySetInnerHTML={{ __html: renderLatex(q.question) }} />
@@ -112,7 +111,7 @@ export default function PdfPreview({ paperData, showAnswers = false }) {
 
           {q.imageUrl && (
             <img src={q.imageUrl} alt={`Q${globalIdx + 1} diagram`}
-              style={{ maxWidth: 280, maxHeight: 180, marginTop: 8, border: '1px solid #ddd', borderRadius: 4 }} />
+              style={{ maxWidth: 280, maxHeight: 180, marginTop: 8, border: '1px solid #ddd', borderRadius: 4 }} alt={`Q${qi + 1} diagram`} />
           )}
 
           <div style={{ textAlign: 'right', fontSize: 10, color: '#666', marginTop: 4, fontStyle: 'italic' }}>

@@ -769,6 +769,12 @@ QUESTIONS:
             q_clean = {k: v for k, v in q.items() if k != "section_type"}
             sections_map[stype]["questions"].append(q_clean)
 
+        # Trim each section to exactly the requested count (no extras, no less)
+        if target_counts:
+            for stype, target in target_counts.items():
+                if stype in sections_map:
+                    sections_map[stype]["questions"] = sections_map[stype]["questions"][:target]
+
         # Always enforce section order: MCQ → short_answer → long_answer
         SECTION_ORDER = ["MCQ", "short_answer", "long_answer"]
         ordered = [sections_map[k] for k in SECTION_ORDER if k in sections_map]
