@@ -46,6 +46,16 @@ const TOPICS_BY_GRADE_SUBJECT = {
       'Mensuration', 'Exponents and Powers', 'Direct and Inverse Proportions',
       'Factorisation', 'Introduction to Graphs',
     ],
+    'Physics': [
+      'Matter', 'Physical Quantities and Measurement', 'Force and Pressure',
+      'Energy', 'Light', 'Sound', 'Electricity', 'Heat Transfer',
+    ],
+    'Chemistry': [
+      'Matter and its Composition', 'Physical and Chemical Changes',
+      'Elements, Compounds and Mixtures', 'Atomic Structure',
+      'Language of Chemistry', 'Chemical Reactions',
+      'Hydrogen', 'Water', 'Carbon and its Compounds',
+    ],
     'Science': [
       'Crop Production and Management', 'Microorganisms', 'Synthetic Fibres and Plastics',
       'Materials: Metals and Non-Metals', 'Coal and Petroleum', 'Combustion and Flame',
@@ -85,6 +95,17 @@ const TOPICS_BY_GRADE_SUBJECT = {
       'Linear Equations in Two Variables', 'Introduction to Euclid\'s Geometry',
       'Lines and Angles', 'Triangles', 'Quadrilaterals', 'Circles',
       'Heron\'s Formula', 'Surface Areas and Volumes', 'Statistics',
+    ],
+    'Physics': [
+      'Measurements and Experimentation', 'Motion in One Dimension',
+      'Laws of Motion', 'Fluids', 'Heat and Energy',
+      'Light', 'Sound', 'Electricity and Magnetism',
+    ],
+    'Chemistry': [
+      'Matter and its Composition', 'Elements, Compounds and Mixtures',
+      'Atomic Structure and Chemical Bonding', 'Language of Chemistry',
+      'Chemical Changes', 'Water', 'Carbon and its Compounds',
+      'Acids, Bases and Salts', 'Analytical Chemistry',
     ],
     'Science': [
       'Matter in Our Surroundings', 'Is Matter Around Us Pure',
@@ -126,6 +147,20 @@ const TOPICS_BY_GRADE_SUBJECT = {
       'Coordinate Geometry', 'Introduction to Trigonometry',
       'Applications of Trigonometry', 'Circles', 'Areas Related to Circles',
       'Surface Areas and Volumes', 'Statistics', 'Probability',
+    ],
+    'Physics': [
+      'Force', 'Work, Energy and Power', 'Machines',
+      'Refraction of Light at Plane Surfaces', 'Refraction through a Lens',
+      'Spectrum', 'Sound', 'Electricity',
+      'Magnetic Effect of Electric Current', 'Calorimetry', 'Nuclear Physics',
+    ],
+    'Chemistry': [
+      'Periodic Table and Periodicity', 'Chemical Bonding',
+      'Acids, Bases and Salts', 'Analytical Chemistry',
+      'Mole Concept and Stoichiometry', 'Electrolysis',
+      'Metallurgy', 'Study of Compounds – Ammonia', 'Study of Compounds – Nitric Acid',
+      'Study of Compounds – Sulphuric Acid', 'Study of Compounds – Hydrogen Chloride',
+      'Organic Chemistry',
     ],
     'Science': [
       'Chemical Reactions and Equations', 'Acids, Bases and Salts',
