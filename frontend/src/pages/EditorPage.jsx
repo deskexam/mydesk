@@ -1062,7 +1062,7 @@ export default function EditorPage() {
               {paperData.questions.map((q, globalIdx) => {
                 const flagged = q.answer_verified === false;
                 return (
-                  <div key={idx} className={`rounded-xl border p-4 ${flagged ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
+                  <div key={globalIdx} className={`rounded-xl border p-4 ${flagged ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
                     <div className="flex items-start gap-2 mb-2">
                       {flagged ? (
                         <span className="text-xs font-bold px-2 py-0.5 bg-amber-200 text-amber-800 rounded-full flex-shrink-0">⚠ Needs Review</span>

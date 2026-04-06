@@ -110,8 +110,8 @@ export default function PdfPreview({ paperData, showAnswers = false }) {
           )}
 
           {q.imageUrl && (
-            <img src={q.imageUrl} alt={`Q${globalIdx + 1} diagram`}
-              style={{ maxWidth: 280, maxHeight: 180, marginTop: 8, border: '1px solid #ddd', borderRadius: 4 }} alt={`Q${qi + 1} diagram`} />
+            <img src={q.imageUrl} alt={`Q${qi + 1} diagram`}
+              style={{ maxWidth: 280, maxHeight: 180, marginTop: 8, border: '1px solid #ddd', borderRadius: 4 }} />
           )}
 
           <div style={{ textAlign: 'right', fontSize: 10, color: '#666', marginTop: 4, fontStyle: 'italic' }}>
