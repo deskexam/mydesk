@@ -29,6 +29,11 @@ export default function PdfPreview({ paperData, showAnswers = false }) {
   const qLineHeight = layout === 'newspaper' ? 1.5 : 1.7;
   const qGap        = isMultiCol ? 10 : 14;
 
+  function cleanOption(opt) {
+    // Strip leading "A. ", "A) ", "a. " etc. added by the AI so we don't double-render the letter
+    return (opt || '').replace(/^[A-Da-d][.)]\s*/, '');
+  }
+
   function renderOptions(q) {
     if (q.type !== 'MCQ' || !q.options) return null;
 
@@ -39,7 +44,7 @@ export default function PdfPreview({ paperData, showAnswers = false }) {
           {q.options.map((opt, i) => (
             <span key={i} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               <span style={{ fontWeight: 600 }}>{String.fromCharCode(65 + i)})</span>
-              <span dangerouslySetInnerHTML={{ __html: renderLatex(opt) }} />
+              <span dangerouslySetInnerHTML={{ __html: renderLatex(cleanOption(opt)) }} />
             </span>
           ))}
         </div>
@@ -53,7 +58,7 @@ export default function PdfPreview({ paperData, showAnswers = false }) {
           {q.options.map((opt, i) => (
             <div key={i} style={{ display: 'flex', gap: 5 }}>
               <span style={{ minWidth: 16, fontWeight: 600 }}>{String.fromCharCode(65 + i)})</span>
-              <span dangerouslySetInnerHTML={{ __html: renderLatex(opt) }} />
+              <span dangerouslySetInnerHTML={{ __html: renderLatex(cleanOption(opt)) }} />
             </div>
           ))}
         </div>
