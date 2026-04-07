@@ -145,6 +145,104 @@ async def get_transactions(current_user: dict = Depends(get_current_user)):
     return transactions
 
 
+@router.get("/admin/stats")
+async def admin_stats(current_user: dict = Depends(get_current_user)):
+    """Admin-only: full platform stats."""
+    db = get_db()
+    user = await db.users.find_one({"_id": current_user["_id"]})
+    if not user or user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access only")
+
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start  = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    from datetime import timedelta
+    week_start = today_start - timedelta(days=6)
+
+    # ── Counts ────────────────────────────────────────────────────────────────
+    total_users      = await db.users.count_documents({})
+    verified_users   = await db.users.count_documents({"email_verified": True})
+    new_today        = await db.users.count_documents({"created_at": {"$gte": today_start}})
+    new_this_week    = await db.users.count_documents({"created_at": {"$gte": week_start}})
+
+    # Paid = active monthly or yearly subscription
+    paid_users = await db.users.count_documents({
+        "subscription_status": {"$in": ["monthly", "yearly"]},
+        "subscription_end": {"$gt": now},
+    })
+    trial_users = await db.users.count_documents({
+        "trial_active": True,
+        "trial_end": {"$gt": now},
+    })
+    free_users = total_users - paid_users - trial_users
+
+    monthly_users = await db.users.count_documents({
+        "subscription_status": "monthly",
+        "subscription_end": {"$gt": now},
+    })
+    yearly_users = await db.users.count_documents({
+        "subscription_status": "yearly",
+        "subscription_end": {"$gt": now},
+    })
+
+    # ── Papers ─────────────────────────────────────────────────────────────────
+    total_papers  = await db.papers.count_documents({})
+    papers_today  = await db.papers.count_documents({"created_at": {"$gte": today_start}})
+    papers_week   = await db.papers.count_documents({"created_at": {"$gte": week_start}})
+
+    # ── Recent users (last 20) ─────────────────────────────────────────────────
+    recent_users = []
+    async for u in db.users.find({}, {
+        "full_name": 1, "name": 1, "email": 1, "role": 1,
+        "subscription_status": 1, "subscription_end": 1,
+        "trial_active": 1, "trial_end": 1,
+        "total_papers_created": 1, "papers_used": 1,
+        "created_at": 1, "email_verified": 1, "institute_name": 1,
+    }).sort("created_at", -1).limit(20):
+        sub_status = u.get("subscription_status", "free")
+        is_paid = sub_status in ("monthly", "yearly") and u.get("subscription_end") and u["subscription_end"] > now
+        is_trial = u.get("trial_active") and u.get("trial_end") and u["trial_end"] > now
+        plan_label = sub_status.capitalize() if is_paid else ("Trial" if is_trial else "Free")
+        recent_users.append({
+            "id":            str(u["_id"]),
+            "name":          u.get("full_name") or u.get("name", ""),
+            "email":         u.get("email", ""),
+            "plan":          plan_label,
+            "papers":        u.get("total_papers_created", 0),
+            "institute":     u.get("institute_name", ""),
+            "verified":      u.get("email_verified", False),
+            "joined":        u.get("created_at").isoformat() if u.get("created_at") else None,
+            "sub_end":       u.get("subscription_end").isoformat() if u.get("subscription_end") else None,
+        })
+
+    # ── Documents & chunks ─────────────────────────────────────────────────────
+    total_docs   = await db.documents.count_documents({})
+    total_papers_db = await db.papers.count_documents({})
+
+    return {
+        "users": {
+            "total": total_users,
+            "verified": verified_users,
+            "new_today": new_today,
+            "new_this_week": new_this_week,
+            "paid": paid_users,
+            "monthly": monthly_users,
+            "yearly": yearly_users,
+            "trial": trial_users,
+            "free": free_users,
+        },
+        "papers": {
+            "total": total_papers_db,
+            "today": papers_today,
+            "this_week": papers_week,
+        },
+        "documents": {
+            "total": total_docs,
+        },
+        "recent_users": recent_users,
+    }
+
+
 @router.post("/increment-papers")
 async def increment_paper_count(current_user: dict = Depends(get_current_user)):
     db = get_db()

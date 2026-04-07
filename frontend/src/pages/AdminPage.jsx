@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Trash2, FileText, BookOpen, Tag, Layers, Loader2, CheckCircle, AlertCircle, ShieldAlert, X, Pencil } from 'lucide-react';
+import { Upload, Trash2, FileText, BookOpen, Tag, Layers, Loader2, CheckCircle, AlertCircle, ShieldAlert, X, Pencil, Users, TrendingUp, BarChart2, LayoutDashboard, CreditCard, UserCheck, UserX, Calendar } from 'lucide-react';
 import Navbar from '../components/auth/Navbar';
 import { useAuth } from '../hooks/useAuth';
 import { fastapiClient } from '../lib/api';
@@ -309,6 +309,10 @@ export default function AdminPage() {
   const { profile } = useAuth();
   const navigate = useNavigate();
 
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [stats,        setStats]       = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
   const [docs,      setDocs]      = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -338,6 +342,16 @@ export default function AdminPage() {
       navigate('/dashboard');
     }
   }, [profile, navigate]);
+
+  // Fetch admin stats
+  useEffect(() => {
+    if (!profile || profile.role !== 'admin') return;
+    setStatsLoading(true);
+    fastapiClient.get('/api/users/admin/stats')
+      .then(res => setStats(res.data))
+      .catch(() => toast.error('Failed to load stats'))
+      .finally(() => setStatsLoading(false));
+  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset subject when board/grade changes
   useEffect(() => {
@@ -448,16 +462,128 @@ export default function AdminPage() {
       <div className="pt-20 px-4 pb-12 max-w-6xl mx-auto">
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 bg-primary-900 rounded-xl flex items-center justify-center">
             <ShieldAlert className="w-5 h-5 text-gold" />
           </div>
           <div>
             <h1 className="text-2xl font-serif font-bold text-primary-900">Admin Panel</h1>
-            <p className="text-sm text-gray-500">Upload PDFs to the RAG vector store for AI question generation</p>
+            <p className="text-sm text-gray-500">Platform management &amp; vector store</p>
           </div>
         </div>
 
+        {/* Tab switcher */}
+        <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 w-fit">
+          {[
+            { id: 'dashboard', icon: <BarChart2 className="w-4 h-4" />, label: 'Dashboard' },
+            { id: 'documents', icon: <BookOpen className="w-4 h-4" />, label: 'Documents' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeTab === tab.id
+                  ? 'bg-white text-primary-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.icon}{tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Dashboard Tab ────────────────────────────────────────────────── */}
+        {activeTab === 'dashboard' && (
+          statsLoading ? (
+            <div className="flex items-center justify-center py-24 text-gray-400">
+              <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading stats…
+            </div>
+          ) : stats ? (
+            <div className="space-y-6">
+
+              {/* Stat cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {[
+                  { label: 'Total Users',    value: stats.users.total,        icon: <Users className="w-5 h-5" />,       color: 'bg-blue-50 text-blue-700' },
+                  { label: 'Paid Users',     value: stats.users.paid,         icon: <CreditCard className="w-5 h-5" />,  color: 'bg-green-50 text-green-700' },
+                  { label: 'Trial Users',    value: stats.users.trial,        icon: <UserCheck className="w-5 h-5" />,   color: 'bg-amber-50 text-amber-700' },
+                  { label: 'Free Users',     value: stats.users.free,         icon: <UserX className="w-5 h-5" />,       color: 'bg-gray-50 text-gray-600' },
+                  { label: 'Monthly Plan',   value: stats.users.monthly,      icon: <Calendar className="w-5 h-5" />,    color: 'bg-violet-50 text-violet-700' },
+                  { label: 'Yearly Plan',    value: stats.users.yearly,       icon: <TrendingUp className="w-5 h-5" />,  color: 'bg-emerald-50 text-emerald-700' },
+                  { label: 'New Today',      value: stats.users.new_today,    icon: <LayoutDashboard className="w-5 h-5" />, color: 'bg-sky-50 text-sky-700' },
+                  { label: 'New This Week',  value: stats.users.new_this_week,icon: <LayoutDashboard className="w-5 h-5" />, color: 'bg-indigo-50 text-indigo-700' },
+                  { label: 'Papers Today',   value: stats.papers.today,       icon: <FileText className="w-5 h-5" />,    color: 'bg-rose-50 text-rose-700' },
+                  { label: 'Papers (Week)',  value: stats.papers.this_week,   icon: <FileText className="w-5 h-5" />,    color: 'bg-pink-50 text-pink-700' },
+                  { label: 'Total Papers',   value: stats.papers.total,       icon: <BarChart2 className="w-5 h-5" />,   color: 'bg-orange-50 text-orange-700' },
+                  { label: 'Total Docs',     value: stats.documents.total,    icon: <Layers className="w-5 h-5" />,      color: 'bg-teal-50 text-teal-700' },
+                ].map(card => (
+                  <div key={card.label} className="bg-white rounded-2xl border border-gray-200 p-4 flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${card.color}`}>
+                      {card.icon}
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold text-primary-900">{card.value}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{card.label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Recent users table */}
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary-900" /> Recent Users
+                    <span className="ml-1 text-xs text-gray-400 font-normal">(last 20)</span>
+                  </h2>
+                  <span className="text-xs text-gray-400">Verified: {stats.users.verified} / {stats.users.total}</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+                        <th className="px-4 py-3 text-left font-medium">Name</th>
+                        <th className="px-4 py-3 text-left font-medium">Email</th>
+                        <th className="px-4 py-3 text-left font-medium">Plan</th>
+                        <th className="px-4 py-3 text-left font-medium">Papers</th>
+                        <th className="px-4 py-3 text-left font-medium">Institute</th>
+                        <th className="px-4 py-3 text-left font-medium">Joined</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {stats.recent_users.map(u => {
+                        const planColor =
+                          u.plan === 'Monthly' || u.plan === 'Yearly' ? 'bg-green-100 text-green-700' :
+                          u.plan === 'Trial'   ? 'bg-amber-100 text-amber-700' :
+                          'bg-gray-100 text-gray-600';
+                        const joinedDate = u.joined ? new Date(u.joined).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' }) : '—';
+                        return (
+                          <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3 font-medium text-gray-800 whitespace-nowrap">
+                              {u.name || '—'}
+                              {!u.verified && <span className="ml-1.5 text-xs text-gray-400">(unverified)</span>}
+                            </td>
+                            <td className="px-4 py-3 text-gray-500 truncate max-w-[200px]">{u.email}</td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${planColor}`}>{u.plan}</span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-600 font-medium">{u.papers}</td>
+                            <td className="px-4 py-3 text-gray-500 truncate max-w-[150px]">{u.institute || '—'}</td>
+                            <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{joinedDate}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          ) : null
+        )}
+
+        {/* ── Documents Tab ──────────────────────────────────────────────── */}
+        {activeTab === 'documents' && (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
           {/* ── Upload Form ──────────────────────────────────────────────── */}
@@ -704,6 +830,8 @@ export default function AdminPage() {
           </div>
 
         </div>
+        )} {/* end documents tab */}
+
       </div>
 
       {/* ── Edit Document Modal ── */}
