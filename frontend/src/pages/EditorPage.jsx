@@ -266,7 +266,7 @@ const PAGE_BOTTOM_MARGIN = 18;  // px — breathing room above footer
 // Scales to fill the available container width instead of a fixed 516 px card.
 // The `containerWidth` prop is the live pixel width of the preview panel.
 
-function PagedPreview({ paperData, containerWidth, showAnswers = false }) {
+function PagedPreview({ paperData, containerWidth, showAnswers = false, showWatermark = false, logoUrl = null }) {
   const measureRef  = useRef(null);   // hidden full-height div for measurement
   const [pageBreaks, setPageBreaks] = useState([0]);
 
@@ -1033,7 +1033,7 @@ export default function EditorPage() {
               </div>
 
               <div className="px-6 pb-6">
-                <PagedPreview paperData={paperData} containerWidth={previewPanelWidth} showAnswers={showAnswers} />
+                <PagedPreview paperData={paperData} containerWidth={previewPanelWidth} showAnswers={showAnswers} showWatermark={showWatermark} logoUrl={logoUrl} />
               </div>
             </div>
           )}
