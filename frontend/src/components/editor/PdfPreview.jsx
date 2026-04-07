@@ -16,7 +16,7 @@ function renderLatex(text) {
   return result;
 }
 
-export default function PdfPreview({ paperData, showAnswers = false }) {
+export default function PdfPreview({ paperData, showAnswers = false, showWatermark = false, logoUrl = null }) {
   const { metadata = {}, questions = [], template = {} } = paperData || {};
   const previewRef = useRef(null);
 
@@ -130,9 +130,26 @@ export default function PdfPreview({ paperData, showAnswers = false }) {
   const sectionMarks = { 'MCQ': '1 mark each', 'True/False': '1 mark each', 'Subjective': 'as indicated' };
 
   return (
-    <div ref={previewRef} id="pdf-preview-root" className="pdf-preview" style={{ fontFamily, color: '#000' }}>
+    <div ref={previewRef} id="pdf-preview-root" className="pdf-preview" style={{ fontFamily, color: '#000', position: 'relative' }}>
+
+      {/* Watermark — free plan only */}
+      {showWatermark && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none', zIndex: 10, transform: 'rotate(-30deg)',
+          opacity: 0.08, fontSize: 64, fontWeight: 900, color: '#000',
+          letterSpacing: 4, userSelect: 'none', whiteSpace: 'nowrap',
+        }}>
+          DESKEXAM.COM
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ borderBottom: `3px solid ${accentColor}`, marginBottom: 16, paddingBottom: 12, textAlign: 'center' }}>
+        {logoUrl && (
+          <img src={logoUrl} alt="Institute Logo"
+            style={{ maxHeight: 56, maxWidth: 160, objectFit: 'contain', marginBottom: 6, display: 'block', marginLeft: 'auto', marginRight: 'auto' }} />
+        )}
         {metadata.instituteName && (
           <div style={{ fontSize: 18, fontWeight: 'bold', color: accentColor, marginBottom: 4 }}>{metadata.instituteName}</div>
         )}

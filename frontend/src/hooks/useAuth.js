@@ -48,19 +48,26 @@ export function AuthProvider({ children }) {
 
   const canDownload = () => {
     if (!profile) return false;
-    // Use new plan system if available
     if (typeof profile.downloads_remaining === 'number') {
       return profile.downloads_remaining > 0;
     }
-    // Legacy fallback
     if (['monthly', 'yearly'].includes(profile.subscription_status)) {
       return new Date(profile.subscription_end) > new Date();
     }
     return (profile.credits ?? 0) > 0;
   };
 
+  // Pro or Yearly active subscription
+  const isPro = () => {
+    if (!profile) return false;
+    if (['monthly', 'yearly'].includes(profile.subscription_status)) {
+      if (profile.subscription_end && new Date(profile.subscription_end) > new Date()) return true;
+    }
+    return false;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, refreshProfile, signOut, canDownload }}>
+    <AuthContext.Provider value={{ user, profile, loading, refreshProfile, signOut, canDownload, isPro }}>
       {children}
     </AuthContext.Provider>
   );
@@ -85,6 +92,8 @@ function normalizeUser(u) {
     // Google
     googleId: u.google_id ?? null,
     google_id: u.google_id ?? null,
+    // Logo
+    custom_logo_url: u.custom_logo_url ?? null,
     // Credits & subscription
     credits: u.credits ?? 3,
     subscription_status: u.subscription_status ?? 'free',

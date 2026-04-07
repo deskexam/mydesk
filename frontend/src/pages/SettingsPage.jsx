@@ -1,14 +1,42 @@
-import { useState } from 'react';
-import { Eye, EyeOff, Key, ExternalLink, CheckCircle } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Eye, EyeOff, Key, ExternalLink, CheckCircle, Upload } from 'lucide-react';
 import Navbar from '../components/auth/Navbar';
+import { useAuth } from '../hooks/useAuth';
+import { fastapiClient } from '../lib/api';
 
 const GEMINI_KEY = 'gemini_api_key';
 
 export default function SettingsPage() {
+  const { profile, isPro, refreshProfile } = useAuth();
+  const userIsPro = isPro?.() ?? false;
+
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(GEMINI_KEY) || '');
   const [show, setShow] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isActive, setIsActive] = useState(() => !!localStorage.getItem(GEMINI_KEY));
+
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoMsg, setLogoMsg] = useState('');
+  const [currentLogo, setCurrentLogo] = useState(profile?.custom_logo_url || null);
+  const logoRef = useRef(null);
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { setLogoMsg('File too large — max 2 MB'); return; }
+    setLogoUploading(true); setLogoMsg('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fastapiClient.post('/api/users/upload-logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setCurrentLogo(res.data.logo_url);
+      setLogoMsg('Logo uploaded successfully!');
+      await refreshProfile();
+    } catch (err) {
+      setLogoMsg(err?.response?.data?.detail || 'Upload failed');
+    }
+    setLogoUploading(false);
+  };
 
   const handleSave = () => {
     const trimmed = apiKey.trim();
@@ -124,6 +152,45 @@ export default function SettingsPage() {
             <p className="text-xs text-gray-400 mt-3">
               🔒 Your key is stored only in your browser (localStorage). It is never sent to our servers.
             </p>
+          </div>
+
+          {/* Institute Logo — Pro/Yearly only */}
+          <div className={`bg-white rounded-2xl border p-6 mb-4 ${userIsPro ? 'border-gray-200' : 'border-gray-100 opacity-70'}`}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-xl">🏫</div>
+              <div>
+                <h2 className="font-semibold text-primary-900 flex items-center gap-2">
+                  Institute Logo
+                  {!userIsPro && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Pro / Yearly only</span>}
+                </h2>
+                <p className="text-gray-400 text-xs">Your logo appears at the top of every generated paper</p>
+              </div>
+              {currentLogo && <span className="ml-auto flex items-center gap-1 text-xs text-green-600 bg-green-50 border border-green-200 rounded-full px-2.5 py-1 font-semibold"><CheckCircle className="w-3 h-3" /> Uploaded</span>}
+            </div>
+
+            {userIsPro ? (
+              <div className="space-y-3">
+                {currentLogo && (
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                    <img src={`/api${currentLogo}`} alt="Current logo" className="h-12 object-contain rounded" />
+                    <span className="text-xs text-gray-500">Current logo</span>
+                  </div>
+                )}
+                <input ref={logoRef} type="file" accept="image/png,image/jpeg,image/jpg,image/webp" className="hidden" onChange={handleLogoUpload} />
+                <button
+                  onClick={() => logoRef.current?.click()}
+                  disabled={logoUploading}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-primary-900 text-white text-sm rounded-xl hover:bg-primary-800 disabled:opacity-50 font-medium"
+                >
+                  <Upload className="w-4 h-4" />
+                  {logoUploading ? 'Uploading…' : currentLogo ? 'Replace Logo' : 'Upload Logo'}
+                </button>
+                {logoMsg && <p className={`text-xs ${logoMsg.includes('success') ? 'text-green-600' : 'text-red-500'}`}>{logoMsg}</p>}
+                <p className="text-xs text-gray-400">PNG, JPG, WEBP — max 2 MB. Recommended: transparent PNG, 400×120px.</p>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">Upgrade to Pro or Yearly plan to upload your institute logo.</p>
+            )}
           </div>
 
           {/* What it enables */}

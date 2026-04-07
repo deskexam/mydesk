@@ -358,7 +358,7 @@ function PagedPreview({ paperData, containerWidth, showAnswers = false }) {
                   width: A4_W_PX,
                 }}
               >
-                <PdfPreview paperData={paperData} showAnswers={showAnswers} />
+                <PdfPreview paperData={paperData} showAnswers={showAnswers} showWatermark={showWatermark} logoUrl={logoUrl} />
               </div>
 
               {/* Top margin mask (pages 2+) */}
@@ -437,7 +437,10 @@ function useSplitPane(initialPct = 45, minPct = 20, maxPct = 80) {
 export default function EditorPage() {
   const { paperId } = useParams();
   const location = useLocation();
-  const { user, profile, refreshProfile, canDownload } = useAuth();
+  const { user, profile, refreshProfile, canDownload, isPro } = useAuth();
+  const userIsPro = isPro();
+  const showWatermark = !userIsPro;
+  const logoUrl = userIsPro ? (profile?.custom_logo_url ? `/api${profile.custom_logo_url}` : null) : null;
 
   const [paperData, setPaperData] = useState({
     metadata: {
@@ -687,7 +690,7 @@ export default function EditorPage() {
       const { createRoot } = await import('react-dom/client');
       const tmpRoot = createRoot(offscreen);
       await new Promise(resolve => {
-        tmpRoot.render(<PdfPreview paperData={paperData} showAnswers={withAnswers} />);
+        tmpRoot.render(<PdfPreview paperData={paperData} showAnswers={withAnswers} showWatermark={showWatermark} logoUrl={logoUrl} />);
         requestAnimationFrame(() => requestAnimationFrame(resolve));
       });
 
