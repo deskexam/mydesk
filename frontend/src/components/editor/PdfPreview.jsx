@@ -5,14 +5,41 @@ import katex from 'katex';
 function renderLatex(text) {
   if (!text) return '';
   let result = text;
+
+  // $$...$$ display math
   result = result.replace(/\$\$([\s\S]+?)\$\$/g, (_, latex) => {
     try { return `<span style="display:block;text-align:center;margin:8px 0">${katex.renderToString(latex.trim(), { displayMode: true, throwOnError: false })}</span>`; }
     catch { return _; }
   });
+
+  // \[...\] display math (some LLMs emit this)
+  result = result.replace(/\\\[([\s\S]+?)\\\]/g, (_, latex) => {
+    try { return `<span style="display:block;text-align:center;margin:8px 0">${katex.renderToString(latex.trim(), { displayMode: true, throwOnError: false })}</span>`; }
+    catch { return _; }
+  });
+
+  // $...$ inline math
   result = result.replace(/\$([^$\n]+?)\$/g, (_, latex) => {
     try { return katex.renderToString(latex.trim(), { displayMode: false, throwOnError: false }); }
     catch { return _; }
   });
+
+  // \(...\) inline math (some LLMs emit this)
+  result = result.replace(/\\\((.+?)\\\)/g, (_, latex) => {
+    try { return katex.renderToString(latex.trim(), { displayMode: false, throwOnError: false }); }
+    catch { return _; }
+  });
+
+  // Auto-detect bare LaTeX tokens NOT already inside a rendered span
+  // Handles patterns like: \frac{a}{b}  \sqrt{x}  \int  \sum  \alpha  x^{2}  x_n
+  result = result.replace(
+    /(\\(?:frac|sqrt|int|sum|prod|lim|alpha|beta|gamma|delta|theta|pi|sigma|omega|lambda|mu|infty|partial|nabla|cdot|times|div|pm|leq|geq|neq|approx|equiv|sin|cos|tan|log|ln|vec|hat|bar|dot|ddot)\b(?:\{[^}]*\})*(?:\{[^}]*\})*|[a-zA-Z0-9]+(?:\^|_)\{[^}]+\}|[a-zA-Z]\^[0-9])/g,
+    (match) => {
+      try { return katex.renderToString(match, { displayMode: false, throwOnError: false }); }
+      catch { return match; }
+    }
+  );
+
   return result;
 }
 

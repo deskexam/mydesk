@@ -131,6 +131,10 @@ REQUIREMENTS:
 6. Base every question strictly on the syllabus context above.
 7. STRICTLY FOLLOW the difficulty level requirements above — this is mandatory.
 8. {answer_instruction}
+9. MATH FORMATTING (MANDATORY): Wrap ALL mathematical expressions in LaTeX delimiters:
+   - Inline math: $x^2$, $\\frac{{a}}{{b}}$, $\\sqrt{{x}}$, $\\int_a^b f(x)\\,dx$, $\\frac{{dy}}{{dx}}$, $\\alpha$, $\\sin(\\theta)$
+   - Display/block equations: $$\\int_0^\\infty e^{{-x^2}}\\,dx$$
+   - NEVER write math as plain text — always use $...$ around every expression, symbol, or formula.
 
 OUTPUT: strict JSON array only, no markdown, no extra text:
 [
@@ -236,6 +240,10 @@ INSTRUCTIONS:
 9. Generate ORIGINAL questions — not copied from textbooks or past papers.
 10. Base every question strictly on the syllabus context provided above.
 11. STRICTLY ENFORCE the difficulty level — reject and replace any question that does not match.
+12. MATH FORMATTING (MANDATORY): Wrap ALL mathematical expressions in LaTeX delimiters:
+    - Inline math: $x^2$, $\\frac{{a}}{{b}}$, $\\sqrt{{x}}$, $\\int_a^b f(x)\\,dx$, $\\frac{{dy}}{{dx}}$, $\\alpha$, $\\pi$, $\\sin(\\theta)$
+    - Display/block equations on their own line: $$\\int_0^\\infty e^{{-x^2}}\\,dx = \\frac{{\\sqrt{{\\pi}}}}{{2}}$$
+    - NEVER write math as plain text — always use $...$ around every formula, symbol, or expression.
 
 OUTPUT FORMAT (strict JSON only, no markdown, no extra text):
 {{
