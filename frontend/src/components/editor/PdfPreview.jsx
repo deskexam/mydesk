@@ -1,44 +1,74 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import katex from 'katex';
 
 
+function inlineKatex(latex) {
+  try { return katex.renderToString(latex.trim(), { displayMode: false, throwOnError: false }); }
+  catch { return latex; }
+}
+
+function displayKatex(latex) {
+  try { return `<span style="display:block;text-align:center;margin:8px 0">${katex.renderToString(latex.trim(), { displayMode: true, throwOnError: false })}</span>`; }
+  catch { return latex; }
+}
+
+// Pre-process plain-text math patterns (AI output without $ delimiters)
+// Only acts on segments NOT already inside $...$ or \(...\) or \[...\]
+function autoWrapMath(text) {
+  // Split by already-delimited math regions to avoid double-processing
+  const parts = text.split(/(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\[[\s\S]+?\\\]|\\\(.+?\\\))/);
+  return parts.map((part, i) => {
+    if (i % 2 === 1) return part; // already a delimited math segment — skip
+    let s = part;
+
+    // \frac{a}{b} and \sqrt{x} bare (LaTeX command without $ wrapper)
+    s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, m => `$${m}$`);
+    s = s.replace(/\\sqrt(?:\[[^\]]+\])?\{([^}]+)\}/g, m => `$${m}$`);
+
+    // \int, \sum, \prod, \lim with optional limits
+    s = s.replace(/\\(int|sum|prod|lim)(?:_\{[^}]+\})?(?:\^\{[^}]+\})?/g, m => `$${m}$`);
+
+    // Bare Greek / math commands not yet wrapped
+    s = s.replace(/\\(alpha|beta|gamma|delta|epsilon|theta|lambda|mu|sigma|omega|pi|phi|psi|infty|partial|nabla|pm|mp|cdot|times|div|leq|geq|neq|approx|equiv)\b/g, m => `$${m}$`);
+
+    // Unicode square root: √x  √(expr)
+    s = s.replace(/√\(([^)]+)\)/g, (_, e) => `$\\sqrt{${e}}$`);
+    s = s.replace(/√([a-zA-Z0-9.]+)/g, (_, e) => `$\\sqrt{${e}}$`);
+
+    // x^{n+1}  →  $x^{n+1}$
+    s = s.replace(/([a-zA-Z][a-zA-Z0-9']*|\d+)\^\{([^}]+)\}/g, (_, b, e) => `$${b}^{${e}}$`);
+
+    // x^(expr)  →  $x^{expr}$  (e.g. x^(1/2))
+    s = s.replace(/([a-zA-Z][a-zA-Z0-9']*|\d+)\^\(([^)]+)\)/g, (_, b, e) => `$${b}^{${e}}$`);
+
+    // x^2  x^3  (letter/number ^ single-or-multi digit)
+    s = s.replace(/([a-zA-Z][a-zA-Z0-9']*|\d+)\^([0-9]+)/g, (_, b, e) => `$${b}^{${e}}$`);
+
+    // Subscripts: x_n  x_{n+1}  a_1
+    s = s.replace(/([a-zA-Z][a-zA-Z0-9']*)\{_\}([0-9a-zA-Z]+)/g, (_, b, e) => `$${b}_{${e}}$`);
+    s = s.replace(/([a-zA-Z])\{_\{([^}]+)\}\}/g, (_, b, e) => `$${b}_{${e}}$`);
+
+    return s;
+  }).join('');
+}
+
 function renderLatex(text) {
   if (!text) return '';
-  let result = text;
 
-  // $$...$$ display math
-  result = result.replace(/\$\$([\s\S]+?)\$\$/g, (_, latex) => {
-    try { return `<span style="display:block;text-align:center;margin:8px 0">${katex.renderToString(latex.trim(), { displayMode: true, throwOnError: false })}</span>`; }
-    catch { return _; }
-  });
+  // Step 1 — auto-wrap bare math tokens with $ delimiters
+  let result = autoWrapMath(text);
 
-  // \[...\] display math (some LLMs emit this)
-  result = result.replace(/\\\[([\s\S]+?)\\\]/g, (_, latex) => {
-    try { return `<span style="display:block;text-align:center;margin:8px 0">${katex.renderToString(latex.trim(), { displayMode: true, throwOnError: false })}</span>`; }
-    catch { return _; }
-  });
+  // Step 2 — render $$...$$ display math
+  result = result.replace(/\$\$([\s\S]+?)\$\$/g, (_, latex) => displayKatex(latex));
 
-  // $...$ inline math
-  result = result.replace(/\$([^$\n]+?)\$/g, (_, latex) => {
-    try { return katex.renderToString(latex.trim(), { displayMode: false, throwOnError: false }); }
-    catch { return _; }
-  });
+  // Step 3 — render \[...\] display math (some LLMs emit this)
+  result = result.replace(/\\\[([\s\S]+?)\\\]/g, (_, latex) => displayKatex(latex));
 
-  // \(...\) inline math (some LLMs emit this)
-  result = result.replace(/\\\((.+?)\\\)/g, (_, latex) => {
-    try { return katex.renderToString(latex.trim(), { displayMode: false, throwOnError: false }); }
-    catch { return _; }
-  });
+  // Step 4 — render $...$ inline math
+  result = result.replace(/\$([^$\n]+?)\$/g, (_, latex) => inlineKatex(latex));
 
-  // Auto-detect bare LaTeX tokens NOT already inside a rendered span
-  // Handles patterns like: \frac{a}{b}  \sqrt{x}  \int  \sum  \alpha  x^{2}  x_n
-  result = result.replace(
-    /(\\(?:frac|sqrt|int|sum|prod|lim|alpha|beta|gamma|delta|theta|pi|sigma|omega|lambda|mu|infty|partial|nabla|cdot|times|div|pm|leq|geq|neq|approx|equiv|sin|cos|tan|log|ln|vec|hat|bar|dot|ddot)\b(?:\{[^}]*\})*(?:\{[^}]*\})*|[a-zA-Z0-9]+(?:\^|_)\{[^}]+\}|[a-zA-Z]\^[0-9])/g,
-    (match) => {
-      try { return katex.renderToString(match, { displayMode: false, throwOnError: false }); }
-      catch { return match; }
-    }
-  );
+  // Step 5 — render \(...\) inline math (some LLMs emit this)
+  result = result.replace(/\\\((.+?)\\\)/g, (_, latex) => inlineKatex(latex));
 
   return result;
 }
