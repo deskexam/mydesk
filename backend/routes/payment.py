@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from core.database import get_db
@@ -62,6 +62,7 @@ async def create_order(
 @router.post("/verify-payment")
 async def verify_payment(
     body: VerifyPaymentRequest,
+    background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user),
 ):
     import hmac, hashlib
@@ -110,6 +111,19 @@ async def verify_payment(
         "description": f"{plan_cfg['label']} subscription via Razorpay",
         "created_at": now,
     })
+
+    # Send payment confirmation email
+    from core.email import send_payment_confirmation_email
+    expiry_str = subscription_end.strftime("%d %b %Y")
+    background_tasks.add_task(
+        send_payment_confirmation_email,
+        current_user["email"],
+        current_user.get("full_name", current_user.get("name", "")),
+        plan_cfg["label"],
+        plan_cfg["amount"] // 100,
+        body.razorpay_payment_id,
+        expiry_str,
+    )
 
     return {
         "message": f"{plan_cfg['label']} activated successfully",

@@ -71,7 +71,7 @@ def format_user(user: dict) -> dict:
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.post("/register", status_code=201)
-async def register(payload: UserCreate):
+async def register(payload: UserCreate, background_tasks: BackgroundTasks):
     db = get_db()
     existing = await db.users.find_one({"email": payload.email})
     if existing:
@@ -114,6 +114,13 @@ async def register(payload: UserCreate):
 
     result = await db.users.insert_one(user_doc)
     user_doc["_id"] = result.inserted_id
+
+    # Send welcome + verification emails in background
+    from core.email import send_welcome_email, send_verification_email as _send_verify
+    from core.config import settings as _s
+    background_tasks.add_task(send_welcome_email, payload.email, payload.full_name, _s.TRIAL_DAYS)
+    background_tasks.add_task(_send_verify, payload.email, user_doc["email_verification_token"])
+
     return format_user(user_doc)
 
 
@@ -197,7 +204,7 @@ async def reset_password(token: str, payload: ResetPasswordRequest):
 
 
 @router.post("/google")
-async def google_auth(payload: GoogleAuthRequest):
+async def google_auth(payload: GoogleAuthRequest, background_tasks: BackgroundTasks):
     import httpx
     # Verify ID token with Google tokeninfo endpoint
     async with httpx.AsyncClient() as client:
@@ -229,7 +236,9 @@ async def google_auth(payload: GoogleAuthRequest):
             user["google_id"] = google_id
             user["email_verified"] = True
     else:
-        # Register new user
+        # Register new Google user — same trial setup as email registration
+        from core.config import settings as _gs
+        trial_end = now + timedelta(days=_gs.TRIAL_DAYS)
         user_doc = {
             "full_name": full_name,
             "name": full_name,
@@ -239,9 +248,20 @@ async def google_auth(payload: GoogleAuthRequest):
             "role": "user",
             "email_verified": True,
             "email_verification_token": None,
+            # Plan fields
+            "plan": "basic",
+            "trial_active": True,
+            "trial_end": trial_end,
+            "subscription_start": now,
+            "subscription_end": trial_end,
+            "papers_used": 0,
+            "downloads_used": 0,
+            "last_reset_date": now,
+            "custom_logo_url": None,
+            "institute_name": "",
+            # Legacy
             "credits": 3,
-            "subscription_status": "free",
-            "subscription_end": None,
+            "subscription_status": "basic",
             "total_papers_created": 0,
             "created_at": now,
             "updated_at": now,
@@ -249,6 +269,9 @@ async def google_auth(payload: GoogleAuthRequest):
         result = await db.users.insert_one(user_doc)
         user_doc["_id"] = result.inserted_id
         user = user_doc
+        # Send welcome email
+        from core.email import send_welcome_email
+        background_tasks.add_task(send_welcome_email, email, full_name, _gs.TRIAL_DAYS)
 
     token = create_access_token({"sub": str(user["_id"]), "role": user.get("role", "user")})
     return {
@@ -277,11 +300,6 @@ async def resend_verification(payload: ResendVerificationRequest, background_tas
     return {"message": "Verification email sent"}
 
 
-# ── Email placeholders ────────────────────────────────────────────────────────
+# ── Email helpers (wraps core/email.py for background_tasks compatibility) ────
 
-async def send_reset_email(email: str, token: str):
-    print(f"[EMAIL] Password reset link for {email}: /auth?reset={token}")
-
-
-async def send_verification_email(email: str, token: str):
-    print(f"[EMAIL] Verification link for {email}: /auth?verify={token}")
+from core.email import send_reset_email, send_verification_email  # noqa: E402
