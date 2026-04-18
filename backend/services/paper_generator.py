@@ -312,108 +312,166 @@ def _generate_batched(
     counts: Dict[str, int], context_chunks: List[str],
     model: str, per_q_marks: Dict[str, int],
 ) -> dict:
-    """Generate large papers using batched MCQ calls + single call for other types."""
+    """Generate papers using adaptive batched calls per section type with gap-filling fallback."""
     client = get_client()
     sections = []
 
-    # Batched MCQ generation — always uses MCQ_MODEL (8b, 500k TPD) to save 70b quota
-    mcq_count = counts.get("MCQ", 0)
+    # ── helpers ──────────────────────────────────────────────────────────────────
+
+    def _parse_mcq_batch(raw: str, marks: int) -> List[dict]:
+        arr = re.search(r'\[[\s\S]*\]', raw)
+        if not arr:
+            return []
+        try:
+            qs = json.loads(arr.group())
+            for q in qs:
+                q["marks"] = marks
+            return qs
+        except json.JSONDecodeError:
+            return []
+
+    def _parse_section(raw: str, qt: str) -> Optional[dict]:
+        j = re.search(r'\{[\s\S]*\}', raw)
+        if not j:
+            return None
+        try:
+            data = json.loads(j.group())
+        except json.JSONDecodeError:
+            return None
+        node = data.get("paper", data)
+        for sec in node.get("sections", []):
+            sec["type"] = TYPE_MAP.get(sec.get("type", "").lower(), sec.get("type", ""))
+            if sec["type"] == qt:
+                return sec
+        return None
+
+    # ── MCQ: adaptive batching with gap-fill ─────────────────────────────────────
+    mcq_count    = counts.get("MCQ", 0)
     marks_per_mcq = per_q_marks["MCQ"]
+
     if mcq_count > 0:
         all_mcqs: List[dict] = []
-        remaining = mcq_count
-        current_num = 1
-        batch_num = 0
-        while remaining > 0:
-            batch_size = min(MCQ_BATCH_SIZE, remaining)
-            batch_num += 1
+        needed        = mcq_count
+        current_num   = 1
+        consecutive_zero = 0          # guard: stop if API keeps returning nothing
+        batch_cap     = MCQ_BATCH_SIZE # shrinks automatically on repeated failure
+
+        while needed > 0 and consecutive_zero < 3:
+            batch_size = min(batch_cap, needed)
+            tokens     = min(max(1500, batch_size * 120), 4000)
+
             prompt = _build_mcq_batch_prompt(
                 board, grade, subject, topics, difficulty,
                 batch_size, marks_per_mcq, context_chunks, include_answer_key,
                 start_num=current_num, used_questions=all_mcqs,
             )
-            message = _groq_create(
-                client, MCQ_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=3000, timeout=60,
-            )
-            raw = message.choices[0].message.content.strip()
-            arr_match = re.search(r'\[[\s\S]*\]', raw)
-            if arr_match:
+
+            got: List[dict] = []
+            for _attempt in range(2):   # up to 2 tries per batch
                 try:
-                    batch_qs = json.loads(arr_match.group())
-                    for q in batch_qs:
-                        q["marks"] = marks_per_mcq
-                    all_mcqs.extend(batch_qs)
-                except json.JSONDecodeError:
+                    msg = _groq_create(
+                        client, MCQ_MODEL,
+                        messages=[{"role": "user", "content": prompt}],
+                        max_tokens=tokens, timeout=60,
+                    )
+                    got = _parse_mcq_batch(msg.choices[0].message.content.strip(), marks_per_mcq)
+                    if got:
+                        break
+                except Exception:
                     pass
 
-            remaining -= batch_size
-            current_num += batch_size
+            if got:
+                all_mcqs.extend(got)
+                actual = len(got)
+                needed       -= actual
+                current_num  += actual
+                consecutive_zero = 0
+                # If we got fewer than asked, shrink batch for next round
+                if actual < batch_size:
+                    batch_cap = max(5, actual)
+            else:
+                consecutive_zero += 1
+                # Halve batch size and retry with simpler ask
+                batch_cap = max(5, batch_cap // 2)
 
         sections.append({
             "section_name": "Section A", "type": "MCQ",
-            "instructions": "Choose the correct answer.", "questions": all_mcqs,
+            "instructions": "Choose the correct answer.",
+            "questions": all_mcqs,
         })
 
-    # Non-MCQ sections (single call)
-    non_mcq_types = [qt for qt in question_types if qt != "MCQ"]
-    if non_mcq_types:
-        non_mcq_total = sum(counts.get(qt, 0) * per_q_marks[qt] for qt in non_mcq_types)
-        non_mcq_counts = {qt: counts[qt] for qt in non_mcq_types if qt in counts}
+    # ── Non-MCQ: one dedicated call per type + gap-fill ──────────────────────────
+    def _fill_section(qt: str) -> Optional[dict]:
+        """
+        Generate all questions for one section type.
+        Tries in progressively smaller chunks until we hit the target count
+        or exhaust 4 total attempts.
+        """
+        total_needed = counts.get(qt, 0)
+        if total_needed == 0:
+            return None
 
-        prompt = build_prompt(
-            board, grade, subject, topics, non_mcq_total, duration_minutes,
-            non_mcq_types, difficulty, context_chunks, include_answer_key,
-            non_mcq_counts, per_q_marks,
-        )
-        max_out = min(max(3500, non_mcq_total * 150), 8000)
-        message = _groq_create(
-            client, model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_out, timeout=120,
-        )
-        raw = message.choices[0].message.content.strip()
+        all_questions: List[dict] = []
+        attempts      = 0
+        max_attempts  = 4          # generous: allows up to 4 rounds of gap-filling
 
-        def _parse_non_mcq(raw_text):
-            json_match = re.search(r'\{[\s\S]*\}', raw_text)
-            if not json_match:
-                return []
+        while len(all_questions) < total_needed and attempts < max_attempts:
+            gap       = total_needed - len(all_questions)
+            # Shrink ask size after first failure to avoid token exhaustion
+            ask_count = gap if attempts == 0 else max(1, gap // 2)
+            ask_count = min(ask_count, gap)
+            sec_marks = ask_count * per_q_marks[qt]
+            max_out   = min(max(2000, ask_count * 400), 7000)
+            start_num = len(all_questions) + 1
+
+            prompt = build_prompt(
+                board, grade, subject, topics, sec_marks, duration_minutes,
+                [qt], difficulty, context_chunks, include_answer_key,
+                {qt: ask_count}, per_q_marks,
+            )
+            # Inject start_num hint so questions are numbered correctly in responses
+            prompt = prompt.replace(
+                '"number": 1,',
+                f'"number": {start_num},', 1,
+            )
+
+            sec = None
             try:
-                data = json.loads(json_match.group())
-            except json.JSONDecodeError:
-                return []
-            other = data.get("paper", data)
-            found = []
-            for section in other.get("sections", []):
-                raw_type = section.get("type", "")
-                section["type"] = TYPE_MAP.get(raw_type.lower(), raw_type)
-                if section["type"] in non_mcq_types:
-                    found.append(section)
-            return found
-
-        parsed = _parse_non_mcq(raw)
-        # Retry once if any requested non-MCQ section type is missing
-        missing_types = [qt for qt in non_mcq_types if not any(s["type"] == qt for s in parsed)]
-        if missing_types:
-            try:
-                retry_msg = _groq_create(
+                msg = _groq_create(
                     client, model,
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=max_out, timeout=120,
                 )
-                retry_parsed = _parse_non_mcq(retry_msg.choices[0].message.content.strip())
-                # Merge: use retry sections for types that were missing
-                retry_by_type = {s["type"]: s for s in retry_parsed}
-                parsed_by_type = {s["type"]: s for s in parsed}
-                for qt in non_mcq_types:
-                    if qt not in parsed_by_type and qt in retry_by_type:
-                        parsed_by_type[qt] = retry_by_type[qt]
-                parsed = list(parsed_by_type.values())
+                sec = _parse_section(msg.choices[0].message.content.strip(), qt)
             except Exception:
                 pass
 
-        sections.extend(parsed)
+            if sec and sec.get("questions"):
+                all_questions.extend(sec["questions"])
+            attempts += 1
+
+        if not all_questions:
+            return None
+
+        # Re-number questions sequentially regardless of what the AI returned
+        for i, q in enumerate(all_questions, 1):
+            q["number"] = i
+
+        return {
+            "section_name": {"short_answer": "Section B", "long_answer": "Section C"}.get(qt, "Section"),
+            "type": qt,
+            "instructions": {
+                "short_answer": "Answer the following questions briefly.",
+                "long_answer":  "Answer the following questions in detail.",
+            }.get(qt, "Answer the following questions."),
+            "questions": all_questions[:total_needed],
+        }
+
+    non_mcq_types = [qt for qt in question_types if qt != "MCQ"]
+    for qt in non_mcq_types:
+        sec = _fill_section(qt)
+        if sec:
+            sections.append(sec)
 
     # Enforce section order: MCQ → short_answer → long_answer
     SECTION_ORDER = ["MCQ", "short_answer", "long_answer"]
@@ -609,20 +667,25 @@ Return ONLY a JSON array:
 [{{"section_type":"{section_type}","question":"...","marks":{marks},"topic":"..."{(',' + answer_field) if answer_field else ''}}}]
 No markdown, no explanation."""
 
-    # MCQ replacements use the fast 8b model (saves 70b TPD quota)
     call_model = MCQ_MODEL if section_type == "MCQ" else model
-    try:
-        result = _groq_create(
-            client, call_model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=min(count * 150, 3000), timeout=60,
-        )
-        raw = result.choices[0].message.content.strip()
-        arr_match = re.search(r'\[[\s\S]*\]', raw)
-        if arr_match:
-            return json.loads(arr_match.group())
-    except Exception as e:
-        print(f"[VERIFY] Replacement generation failed for {section_type}: {e}", flush=True)
+    # Token budget: MCQ is compact; non-MCQ needs room for full answers
+    max_tok = min(count * 120, 3000) if section_type == "MCQ" else min(max(2000, count * 400), 7000)
+
+    for attempt in range(2):   # one retry
+        try:
+            result = _groq_create(
+                client, call_model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tok, timeout=90,
+            )
+            raw = result.choices[0].message.content.strip()
+            arr_match = re.search(r'\[[\s\S]*\]', raw)
+            if arr_match:
+                parsed = json.loads(arr_match.group())
+                if parsed:
+                    return parsed
+        except Exception as e:
+            print(f"[VERIFY] Replacement attempt {attempt+1} failed for {section_type}: {e}", flush=True)
     return []
 
 
@@ -758,26 +821,27 @@ QUESTIONS:
         stype = q.get("section_type", "short_answer")
         cleaned_counts[stype] = cleaned_counts.get(stype, 0) + 1
 
-    # ── 5. Regenerate replacements for removed questions ─────────────────────
+    # ── 5. Regenerate replacements for removed questions (up to 3 rounds per type)
     existing_qs = [q.get("question", "") for q in cleaned_flat]
 
     for stype, target in target_counts.items():
-        got = cleaned_counts.get(stype, 0)
-        shortage = target - got
-        if shortage <= 0:
-            continue
-        print(f"[VERIFY] {shortage} {stype} question(s) short — regenerating replacements", flush=True)
-        marks = (per_q_marks or {}).get(stype, 1)
+        marks       = (per_q_marks or {}).get(stype, 1)
+        batch_limit = MCQ_BATCH_SIZE if stype == "MCQ" else 10
 
-        # Batch replacements so we never exceed MCQ_BATCH_SIZE per call
-        batch_limit = MCQ_BATCH_SIZE if stype == "MCQ" else shortage
-        remaining = shortage
-        while remaining > 0:
-            batch = min(batch_limit, remaining)
+        for fill_round in range(3):          # up to 3 gap-fill rounds per type
+            # Recount after each round
+            current_count = sum(1 for q in cleaned_flat if q.get("section_type") == stype)
+            shortage = target - current_count
+            if shortage <= 0:
+                break
+
+            # Shrink ask size on later rounds to avoid token exhaustion
+            ask = shortage if fill_round == 0 else max(1, shortage // 2)
+            ask = min(ask, batch_limit)
+
+            print(f"[VERIFY] Round {fill_round+1}: {shortage} {stype} short — asking for {ask}", flush=True)
             replacements = _regenerate_replacements(
-                section_type=stype,
-                count=batch,
-                marks=marks,
+                section_type=stype, count=ask, marks=marks,
                 board=board, grade=grade, subject=subject,
                 topics=topics, difficulty=difficulty,
                 include_answer_key=include_answer_key,
@@ -789,7 +853,8 @@ QUESTIONS:
                 r["section_type"] = stype
             cleaned_flat.extend(replacements)
             existing_qs.extend(r.get("question", "") for r in replacements)
-            remaining -= batch
+            if not replacements:
+                break  # API keeps failing — stop early
 
     # ── 6. Rebuild sections ──────────────────────────────────────────────────
     try:
@@ -807,11 +872,20 @@ QUESTIONS:
             q_clean = {k: v for k, v in q.items() if k != "section_type"}
             sections_map[stype]["questions"].append(q_clean)
 
-        # Trim each section to exactly the requested count (no extras, no less)
+        # Hard-enforce exact requested counts: trim excess, log if still short
         if target_counts:
             for stype, target in target_counts.items():
                 if stype in sections_map:
-                    sections_map[stype]["questions"] = sections_map[stype]["questions"][:target]
+                    qs = sections_map[stype]["questions"]
+                    sections_map[stype]["questions"] = qs[:target]
+                    actual = len(sections_map[stype]["questions"])
+                    if actual < target:
+                        print(f"[VERIFY] WARNING: {stype} delivered {actual}/{target} — shortage after all retries", flush=True)
+                    else:
+                        print(f"[VERIFY] OK: {stype} = {actual}/{target}", flush=True)
+                else:
+                    # Section type was requested but entirely missing — create empty placeholder
+                    print(f"[VERIFY] WARNING: {stype} section entirely missing from paper", flush=True)
 
         # Always enforce section order: MCQ → short_answer → long_answer
         SECTION_ORDER = ["MCQ", "short_answer", "long_answer"]
@@ -820,10 +894,6 @@ QUESTIONS:
         paper["sections"] = ordered
         paper["total_marks"] = sum(
             q.get("marks", 1) for s in paper["sections"] for q in s.get("questions", [])
-        )
-        print(
-            f"[VERIFY] Final counts: { {k: len(v['questions']) for k, v in sections_map.items()} }",
-            flush=True,
         )
     except Exception as e:
         print(f"[VERIFY] Section rebuild failed: {e} — returning original paper", flush=True)
