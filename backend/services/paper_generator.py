@@ -245,6 +245,8 @@ INSTRUCTIONS:
     - Display/block equations on their own line: $$\\int_0^\\infty e^{{-x^2}}\\,dx = \\frac{{\\sqrt{{\\pi}}}}{{2}}$$
     - NEVER write math as plain text — always use $...$ around every formula, symbol, or expression.
 
+CRITICAL: You MUST output ALL {len(question_types)} section(s) in the JSON — one section per question type: {', '.join(question_types)}. Do NOT stop after the first section. The JSON must be complete and valid before you stop.
+
 OUTPUT FORMAT (strict JSON only, no markdown, no extra text):
 {{
   "paper": {{
@@ -365,25 +367,53 @@ def _generate_batched(
             non_mcq_types, difficulty, context_chunks, include_answer_key,
             non_mcq_counts, per_q_marks,
         )
-        max_out = min(max(2048, non_mcq_total * 80), 5500)
+        max_out = min(max(3500, non_mcq_total * 150), 8000)
         message = _groq_create(
             client, model,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_out, timeout=90,
+            max_tokens=max_out, timeout=120,
         )
         raw = message.choices[0].message.content.strip()
-        json_match = re.search(r'\{[\s\S]*\}', raw)
-        if json_match:
+
+        def _parse_non_mcq(raw_text):
+            json_match = re.search(r'\{[\s\S]*\}', raw_text)
+            if not json_match:
+                return []
             try:
                 data = json.loads(json_match.group())
-                other = data.get("paper", data)
-                for section in other.get("sections", []):
-                    raw_type = section.get("type", "")
-                    section["type"] = TYPE_MAP.get(raw_type.lower(), raw_type)
-                    if section["type"] in non_mcq_types:
-                        sections.append(section)
             except json.JSONDecodeError:
+                return []
+            other = data.get("paper", data)
+            found = []
+            for section in other.get("sections", []):
+                raw_type = section.get("type", "")
+                section["type"] = TYPE_MAP.get(raw_type.lower(), raw_type)
+                if section["type"] in non_mcq_types:
+                    found.append(section)
+            return found
+
+        parsed = _parse_non_mcq(raw)
+        # Retry once if any requested non-MCQ section type is missing
+        missing_types = [qt for qt in non_mcq_types if not any(s["type"] == qt for s in parsed)]
+        if missing_types:
+            try:
+                retry_msg = _groq_create(
+                    client, model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=max_out, timeout=120,
+                )
+                retry_parsed = _parse_non_mcq(retry_msg.choices[0].message.content.strip())
+                # Merge: use retry sections for types that were missing
+                retry_by_type = {s["type"]: s for s in retry_parsed}
+                parsed_by_type = {s["type"]: s for s in parsed}
+                for qt in non_mcq_types:
+                    if qt not in parsed_by_type and qt in retry_by_type:
+                        parsed_by_type[qt] = retry_by_type[qt]
+                parsed = list(parsed_by_type.values())
+            except Exception:
                 pass
+
+        sections.extend(parsed)
 
     # Enforce section order: MCQ → short_answer → long_answer
     SECTION_ORDER = ["MCQ", "short_answer", "long_answer"]
@@ -464,7 +494,7 @@ def generate_paper(
         question_types, difficulty, chunks, include_answer_key,
         counts, per_q_marks,
     )
-    max_out = min(max(2048, total_marks * 60), 5500)
+    max_out = min(max(3500, total_marks * 100), 8000)
 
     client = get_client()
     message = _groq_create(
@@ -702,7 +732,7 @@ QUESTIONS:
 {json.dumps(non_mcq_flat, indent=2)[:8000]}"""
 
         try:
-            verify_max = min(max(1500, len(non_mcq_flat) * 80), 4000)
+            verify_max = min(max(2500, len(non_mcq_flat) * 150), 6000)
             message = _groq_create(
                 client, VERIFY_MODEL,
                 messages=[{"role": "user", "content": llm_prompt}],
