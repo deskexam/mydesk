@@ -1,6 +1,6 @@
-import React from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Download, Shield, Star, FileText, Layers, Sparkles, LogOut } from 'lucide-react';
+import { Zap, Download, Shield, Star, FileText, Layers, Sparkles, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export default function LandingPage() {
