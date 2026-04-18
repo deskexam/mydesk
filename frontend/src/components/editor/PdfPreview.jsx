@@ -2,75 +2,131 @@ import { useRef } from 'react';
 import katex from 'katex';
 
 
+const KATEX_OPTS_INLINE   = { displayMode: false, throwOnError: false, strict: false };
+const KATEX_OPTS_DISPLAY  = { displayMode: true,  throwOnError: false, strict: false };
+
 function inlineKatex(latex) {
-  try { return katex.renderToString(latex.trim(), { displayMode: false, throwOnError: false }); }
+  try { return katex.renderToString(latex.trim(), KATEX_OPTS_INLINE); }
   catch { return latex; }
 }
 
 function displayKatex(latex) {
-  try { return `<span style="display:block;text-align:center;margin:8px 0">${katex.renderToString(latex.trim(), { displayMode: true, throwOnError: false })}</span>`; }
-  catch { return latex; }
+  try {
+    return `<span style="display:block;text-align:center;margin:10px 0;overflow-x:auto">${
+      katex.renderToString(latex.trim(), KATEX_OPTS_DISPLAY)
+    }</span>`;
+  } catch { return latex; }
 }
 
-// Pre-process plain-text math patterns (AI output without $ delimiters)
-// Only acts on segments NOT already inside $...$ or \(...\) or \[...\]
+// Converts Unicode / bare-LaTeX math patterns to properly delimited $...$ / $$...$$ blocks.
+// Uses null-byte placeholders so already-processed math is never double-processed.
 function autoWrapMath(text) {
-  // Split by already-delimited math regions to avoid double-processing
-  const parts = text.split(/(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\[[\s\S]+?\\\]|\\\(.+?\\\))/);
-  return parts.map((part, i) => {
-    if (i % 2 === 1) return part; // already a delimited math segment — skip
-    let s = part;
+  if (!text) return text;
 
-    // \frac{a}{b} and \sqrt{x} bare (LaTeX command without $ wrapper)
-    s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, m => `$${m}$`);
-    s = s.replace(/\\sqrt(?:\[[^\]]+\])?\{([^}]+)\}/g, m => `$${m}$`);
+  // Placeholder registry — key is \x00M<n>\x00, value is the final $...$  string
+  const vault = [];
+  const lock   = (inner, display = false) => {
+    const delim = display ? '$$' : '$';
+    vault.push(`${delim}${inner}${delim}`);
+    return `\x00M${vault.length - 1}\x00`;
+  };
+  const restore = s => s.replace(/\x00M(\d+)\x00/g, (_, i) => vault[+i]);
 
-    // \int, \sum, \prod, \lim with optional limits
-    s = s.replace(/\\(int|sum|prod|lim)(?:_\{[^}]+\})?(?:\^\{[^}]+\})?/g, m => `$${m}$`);
+  // Protect existing delimited math FIRST so later steps never touch it
+  let s = text
+    .replace(/\$\$([\s\S]+?)\$\$/g,   (_, m) => lock(m, true))
+    .replace(/\$([^$\n]+?)\$/g,        (_, m) => lock(m))
+    .replace(/\\\[([\s\S]+?)\\\]/g,    (_, m) => { vault.push(`\\[${m}\\]`); return `\x00M${vault.length-1}\x00`; })
+    .replace(/\\\((.+?)\\\)/g,         (_, m) => { vault.push(`\\(${m}\\)`); return `\x00M${vault.length-1}\x00`; });
 
-    // Bare Greek / math commands not yet wrapped
-    s = s.replace(/\\(alpha|beta|gamma|delta|epsilon|theta|lambda|mu|sigma|omega|pi|phi|psi|infty|partial|nabla|pm|mp|cdot|times|div|leq|geq|neq|approx|equiv)\b/g, m => `$${m}$`);
+  // Helper: convert common Unicode inside limit strings to LaTeX without $ wrappers
+  const uniLimits = t => t.trim()
+    .replace(/π/g,'\\pi').replace(/∞/g,'\\infty').replace(/α/g,'\\alpha')
+    .replace(/β/g,'\\beta').replace(/θ/g,'\\theta').replace(/ω/g,'\\omega')
+    .replace(/²/g,'^{2}').replace(/³/g,'^{3}').replace(/⁴/g,'^{4}');
 
-    // Unicode square root: √x  √(expr)
-    s = s.replace(/√\(([^)]+)\)/g, (_, e) => `$\\sqrt{${e}}$`);
-    s = s.replace(/√([a-zA-Z0-9.]+)/g, (_, e) => `$\\sqrt{${e}}$`);
+  // ── 1. Unicode integral with bracket limits:  ∫[0,π/2]  ∫[a,b] ──────────────
+  s = s.replace(/∫\s*\[\s*([^,\]]+?)\s*,\s*([^\]]+?)\s*\]/g,
+    (_, lo, hi) => lock(`\\int_{${uniLimits(lo)}}^{${uniLimits(hi)}}`));
 
-    // x^{n+1}  →  $x^{n+1}$
-    s = s.replace(/([a-zA-Z][a-zA-Z0-9']*|\d+)\^\{([^}]+)\}/g, (_, b, e) => `$${b}^{${e}}$`);
+  // ── 2. Unicode integral with _{}^{} limits:  ∫_{0}^{1} ───────────────────────
+  s = s.replace(/∫\s*_\{([^}]+)\}\s*\^\{([^}]+)\}/g,
+    (_, lo, hi) => lock(`\\int_{${uniLimits(lo)}}^{${uniLimits(hi)}}`));
+  s = s.replace(/∫\s*\^\{([^}]+)\}\s*_\{([^}]+)\}/g,
+    (_, hi, lo) => lock(`\\int_{${uniLimits(lo)}}^{${uniLimits(hi)}}`));
 
-    // x^(expr)  →  $x^{expr}$  (e.g. x^(1/2))
-    s = s.replace(/([a-zA-Z][a-zA-Z0-9']*|\d+)\^\(([^)]+)\)/g, (_, b, e) => `$${b}^{${e}}$`);
+  // ── 3. Bare Unicode ∫ ─────────────────────────────────────────────────────────
+  s = s.replace(/∫/g, () => lock('\\int'));
 
-    // x^2  x^3  (letter/number ^ single-or-multi digit)
-    s = s.replace(/([a-zA-Z][a-zA-Z0-9']*|\d+)\^([0-9]+)/g, (_, b, e) => `$${b}^{${e}}$`);
+  // ── 4. Bare \frac{a}{b} and \sqrt{...} without $ wrapper ─────────────────────
+  s = s.replace(/\\frac\{[^}]+\}\{[^}]+\}/g,          m => lock(m));
+  s = s.replace(/\\sqrt(?:\[[^\]]+\])?\{[^}]+\}/g,    m => lock(m));
 
-    // Subscripts: x_n  x_{n+1}  a_1
-    s = s.replace(/([a-zA-Z][a-zA-Z0-9']*)\{_\}([0-9a-zA-Z]+)/g, (_, b, e) => `$${b}_{${e}}$`);
-    s = s.replace(/([a-zA-Z])\{_\{([^}]+)\}\}/g, (_, b, e) => `$${b}_{${e}}$`);
+  // ── 5. \int / \sum / \prod with optional _{} ^{} limits ──────────────────────
+  s = s.replace(/\\(int|iint|oint|sum|prod|lim)(?:_\{[^}]+\})?(?:\^\{[^}]+\})?(?:\^\{[^}]+\})?(?:_\{[^}]+\})?/g,
+    m => lock(m));
 
-    return s;
-  }).join('');
+  // ── 6. Bare Greek / math commands ────────────────────────────────────────────
+  s = s.replace(/\\(alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Phi|Psi|Omega|pi|infty|partial|nabla|pm|mp|cdot|times|div|leq|geq|neq|approx|equiv|in|notin|subset|supset|forall|exists|to|rightarrow|leftarrow|sin|cos|tan|sec|csc|cot|log|ln)\b/g,
+    m => lock(m));
+
+  // ── 7. Trig with Unicode superscript: sin²x  cos³θ ───────────────────────────
+  const SUP = { '²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9','⁰':'0','¹':'1' };
+  const SUP_PAT = '[²³⁴⁵⁶⁷⁸⁹⁰¹]';
+  s = s.replace(
+    new RegExp(`(sin|cos|tan|sec|csc|cosec|cot|log|ln)(${SUP_PAT})`, 'g'),
+    (_, fn, sup) => lock(`\\${fn === 'cosec' ? 'csc' : fn}^{${SUP[sup]}}`));
+
+  // ── 8. Generic Unicode superscripts:  x²  n³  ────────────────────────────────
+  s = s.replace(new RegExp(`([a-zA-Z][a-zA-Z0-9']*|\\d+)(${SUP_PAT})`, 'g'),
+    (_, base, sup) => lock(`${base}^{${SUP[sup]}}`));
+
+  // ── 9. Unicode Greek letters and math symbols → $\cmd$ ───────────────────────
+  const UNI = {
+    'π':'\\pi','α':'\\alpha','β':'\\beta','γ':'\\gamma','δ':'\\delta',
+    'ε':'\\epsilon','ζ':'\\zeta','η':'\\eta','θ':'\\theta','κ':'\\kappa',
+    'λ':'\\lambda','μ':'\\mu','ν':'\\nu','ξ':'\\xi','ρ':'\\rho',
+    'σ':'\\sigma','τ':'\\tau','φ':'\\phi','χ':'\\chi','ψ':'\\psi','ω':'\\omega',
+    'Γ':'\\Gamma','Δ':'\\Delta','Θ':'\\Theta','Λ':'\\Lambda','Ξ':'\\Xi',
+    'Σ':'\\Sigma','Φ':'\\Phi','Ψ':'\\Psi','Ω':'\\Omega',
+    '∞':'\\infty','∑':'\\sum','∏':'\\prod','∂':'\\partial','∇':'\\nabla',
+    '±':'\\pm','∓':'\\mp','×':'\\times','÷':'\\div',
+    '≤':'\\leq','≥':'\\geq','≠':'\\neq','≈':'\\approx',
+    '→':'\\to','←':'\\leftarrow','↔':'\\leftrightarrow',
+    '∈':'\\in','∉':'\\notin','⊂':'\\subset','⊃':'\\supset',
+    '∀':'\\forall','∃':'\\exists',
+  };
+  for (const [uni, cmd] of Object.entries(UNI)) {
+    s = s.replace(new RegExp(uni, 'g'), () => lock(cmd));
+  }
+
+  // ── 10. Unicode √ ─────────────────────────────────────────────────────────────
+  s = s.replace(/√\(([^)]+)\)/g, (_, e) => lock(`\\sqrt{${e}}`));
+  s = s.replace(/√([a-zA-Z0-9.]+)/g, (_, e) => lock(`\\sqrt{${e}}`));
+  s = s.replace(/√/g, () => lock('\\sqrt{}'));
+
+  // ── 11. x^{n}, x^(n), x^n ────────────────────────────────────────────────────
+  s = s.replace(/([a-zA-Z][a-zA-Z0-9']*|\d+)\^\{([^}]+)\}/g, (_, b, e) => lock(`${b}^{${e}}`));
+  s = s.replace(/([a-zA-Z][a-zA-Z0-9']*|\d+)\^\(([^)]+)\)/g, (_, b, e) => lock(`${b}^{${e}}`));
+  s = s.replace(/([a-zA-Z][a-zA-Z0-9']*|\d+)\^([0-9]+)/g,    (_, b, e) => lock(`${b}^{${e}}`));
+
+  // ── 12. Subscripts: x_n  x_{n+1} ─────────────────────────────────────────────
+  s = s.replace(/([a-zA-Z])\{_\}([0-9a-zA-Z]+)/g,   (_, b, e) => lock(`${b}_{${e}}`));
+  s = s.replace(/([a-zA-Z])\{_\{([^}]+)\}\}/g,       (_, b, e) => lock(`${b}_{${e}}`));
+
+  return restore(s);
 }
 
+// Render a string that may contain LaTeX math delimiters ($, $$, \[, \() into HTML.
 function renderLatex(text) {
   if (!text) return '';
+  const processed = autoWrapMath(text);
 
-  // Step 1 — auto-wrap bare math tokens with $ delimiters
-  let result = autoWrapMath(text);
-
-  // Step 2 — render $$...$$ display math
-  result = result.replace(/\$\$([\s\S]+?)\$\$/g, (_, latex) => displayKatex(latex));
-
-  // Step 3 — render \[...\] display math (some LLMs emit this)
-  result = result.replace(/\\\[([\s\S]+?)\\\]/g, (_, latex) => displayKatex(latex));
-
-  // Step 4 — render $...$ inline math
-  result = result.replace(/\$([^$\n]+?)\$/g, (_, latex) => inlineKatex(latex));
-
-  // Step 5 — render \(...\) inline math (some LLMs emit this)
-  result = result.replace(/\\\((.+?)\\\)/g, (_, latex) => inlineKatex(latex));
-
-  return result;
+  return processed
+    .replace(/\$\$([\s\S]+?)\$\$/g,   (_, m) => displayKatex(m))
+    .replace(/\\\[([\s\S]+?)\\\]/g,   (_, m) => displayKatex(m))
+    .replace(/\$([^$\n]+?)\$/g,        (_, m) => inlineKatex(m))
+    .replace(/\\\((.+?)\\\)/g,         (_, m) => inlineKatex(m));
 }
 
 export default function PdfPreview({ paperData, showAnswers = false, showWatermark = false, logoUrl = null }) {
