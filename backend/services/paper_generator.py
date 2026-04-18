@@ -316,7 +316,7 @@ def _generate_batched(
     client = get_client()
     sections = []
 
-    # ── MCQ: simple fixed-batch loop (fast, predictable) ─────────────────────────
+    # ── MCQ: one call per batch, 45s timeout, no retry ───────────────────────────
     mcq_count     = counts.get("MCQ", 0)
     marks_per_mcq = per_q_marks["MCQ"]
 
@@ -336,7 +336,7 @@ def _generate_batched(
                 message = _groq_create(
                     client, MCQ_MODEL,
                     messages=[{"role": "user", "content": prompt}],
-                    max_tokens=3000, timeout=60,
+                    max_tokens=min(batch_size * 120, 3000), timeout=45,
                 )
                 raw = message.choices[0].message.content.strip()
                 arr_match = re.search(r'\[[\s\S]*\]', raw)
@@ -356,40 +356,37 @@ def _generate_batched(
             "instructions": "Choose the correct answer.", "questions": all_mcqs,
         })
 
-    # ── Non-MCQ: one dedicated call per section type, one retry on failure ────────
+    # ── Non-MCQ: one call per section type, 45s timeout, no automatic retry ──────
+    # Missing questions are filled by enforce_question_counts after verify.
     def _call_single_section(qt: str) -> Optional[dict]:
         q_count   = counts.get(qt, 0)
         sec_marks = q_count * per_q_marks[qt]
-        max_out   = min(max(3500, q_count * 350), 7000)
+        max_out   = min(max(2500, q_count * 300), 6000)
 
         prompt = build_prompt(
             board, grade, subject, topics, sec_marks, duration_minutes,
             [qt], difficulty, context_chunks, include_answer_key,
             {qt: q_count}, per_q_marks,
         )
-
-        def _try() -> Optional[dict]:
-            try:
-                msg = _groq_create(
-                    client, model,
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=max_out, timeout=120,
-                )
-                raw = msg.choices[0].message.content.strip()
-                j = re.search(r'\{[\s\S]*\}', raw)
-                if not j:
-                    return None
-                data = json.loads(j.group())
-                node = data.get("paper", data)
-                for sec in node.get("sections", []):
-                    sec["type"] = TYPE_MAP.get(sec.get("type", "").lower(), sec.get("type", ""))
-                    if sec["type"] == qt:
-                        return sec
-            except Exception:
-                pass
-            return None
-
-        return _try() or _try()   # one automatic retry
+        try:
+            msg = _groq_create(
+                client, model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_out, timeout=45,
+            )
+            raw = msg.choices[0].message.content.strip()
+            j = re.search(r'\{[\s\S]*\}', raw)
+            if not j:
+                return None
+            data = json.loads(j.group())
+            node = data.get("paper", data)
+            for sec in node.get("sections", []):
+                sec["type"] = TYPE_MAP.get(sec.get("type", "").lower(), sec.get("type", ""))
+                if sec["type"] == qt:
+                    return sec
+        except Exception:
+            pass
+        return None
 
     non_mcq_types = [qt for qt in question_types if qt != "MCQ"]
     for qt in non_mcq_types:
@@ -592,15 +589,14 @@ Return ONLY a JSON array:
 No markdown, no explanation."""
 
     call_model = MCQ_MODEL if section_type == "MCQ" else model
-    # Token budget: MCQ is compact; non-MCQ needs room for full answers
-    max_tok = min(count * 120, 3000) if section_type == "MCQ" else min(max(2000, count * 400), 7000)
+    max_tok = min(count * 120, 3000) if section_type == "MCQ" else min(max(2000, count * 350), 6000)
 
     for attempt in range(2):   # one retry
         try:
             result = _groq_create(
                 client, call_model,
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=max_tok, timeout=90,
+                max_tokens=max_tok, timeout=30,
             )
             raw = result.choices[0].message.content.strip()
             arr_match = re.search(r'\[[\s\S]*\]', raw)
@@ -693,62 +689,11 @@ def verify_and_clean_paper(
     validated_mcqs = _python_validate_mcqs(mcq_flat)
     print(f"[VERIFY] MCQ python-check: {len(mcq_flat)} in → {len(validated_mcqs)} valid", flush=True)
 
-    # ── 3. LLM-verify non-MCQ: light-touch only — fix answers, never remove ─────
-    # We do NOT ask the LLM to remove questions here; removals cause count shortfalls
-    # that are hard to recover from. Python validation already handles blanks/dupes.
-    # The LLM's job here is only to verify/correct answer text when present.
-    validated_non_mcq: List[dict] = non_mcq_flat  # default: keep all unchanged
-
-    if non_mcq_flat and include_answer_key:
-        has_answers = any(q.get("answer") for q in non_mcq_flat)
-        if has_answers:
-            # Build a lookup by question text so we can re-attach section_type correctly
-            orig_by_text: Dict[str, dict] = {
-                q.get("question", "").strip(): q for q in non_mcq_flat
-            }
-
-            llm_prompt = f"""You are an exam answer reviewer for {board} Board, Grade {grade}, {subject}.
-
-For each question below, check if the "answer" is factually correct.
-- If the answer is correct → keep it as-is, set "answer_verified": true.
-- If the answer is wrong → correct it, set "answer_verified": false.
-- Do NOT remove any questions. Return ALL {len(non_mcq_flat)} questions.
-- Keep every field exactly as given. PRESERVE "section_type" on every object.
-
-Return ONLY a valid JSON array. No markdown, no explanation.
-
-QUESTIONS:
-{json.dumps(non_mcq_flat, indent=2)[:8000]}"""
-
-            try:
-                verify_max = min(max(2500, len(non_mcq_flat) * 200), 6000)
-                message = _groq_create(
-                    client, VERIFY_MODEL,
-                    messages=[{"role": "user", "content": llm_prompt}],
-                    max_tokens=verify_max, timeout=60,
-                )
-                raw = message.choices[0].message.content.strip()
-                arr_match = re.search(r'\[[\s\S]*\]', raw)
-                if arr_match:
-                    llm_result = json.loads(arr_match.group())
-                    # Re-attach section_type by matching question text (index-match is broken
-                    # when LLM reorders or drops entries)
-                    for q in llm_result:
-                        qtext = q.get("question", "").strip()
-                        orig  = orig_by_text.get(qtext)
-                        if orig and not q.get("section_type"):
-                            q["section_type"] = orig.get("section_type", "short_answer")
-                        elif not q.get("section_type"):
-                            # Fallback: assign based on position in flat list
-                            q["section_type"] = "short_answer"
-                    # Only accept result if LLM returned at least as many questions as sent
-                    if len(llm_result) >= len(non_mcq_flat):
-                        validated_non_mcq = llm_result
-                        print(f"[VERIFY] Non-MCQ answer-check OK: {len(validated_non_mcq)} questions", flush=True)
-                    else:
-                        print(f"[VERIFY] Non-MCQ verify returned fewer questions ({len(llm_result)}/{len(non_mcq_flat)}) — keeping originals", flush=True)
-            except Exception as e:
-                print(f"[VERIFY] Non-MCQ verify failed: {e} — keeping originals", flush=True)
+    # ── 3. Non-MCQ: keep all originals — no LLM removal ─────────────────────────
+    # LLM answer-checking is skipped to stay within the 60-120s budget.
+    # Missing questions are handled by enforce_question_counts after this function.
+    validated_non_mcq: List[dict] = non_mcq_flat
+    print(f"[VERIFY] Non-MCQ kept as-is: {len(non_mcq_flat)} questions", flush=True)
 
     # ── 4. Combine and count ─────────────────────────────────────────────────
     cleaned_flat = validated_mcqs + validated_non_mcq
@@ -764,18 +709,12 @@ QUESTIONS:
         marks       = (per_q_marks or {}).get(stype, 1)
         batch_limit = MCQ_BATCH_SIZE if stype == "MCQ" else 10
 
-        for fill_round in range(3):          # up to 3 gap-fill rounds per type
-            # Recount after each round
-            current_count = sum(1 for q in cleaned_flat if q.get("section_type") == stype)
-            shortage = target - current_count
-            if shortage <= 0:
-                break
-
-            # Shrink ask size on later rounds to avoid token exhaustion
-            ask = shortage if fill_round == 0 else max(1, shortage // 2)
-            ask = min(ask, batch_limit)
-
-            print(f"[VERIFY] Round {fill_round+1}: {shortage} {stype} short — asking for {ask}", flush=True)
+        # Single fill pass in verify — enforce_question_counts handles deeper retries
+        current_count = sum(1 for q in cleaned_flat if q.get("section_type") == stype)
+        shortage = target - current_count
+        if shortage > 0:
+            ask = min(shortage, batch_limit)
+            print(f"[VERIFY] {stype} short by {shortage} — filling {ask}", flush=True)
             replacements = _regenerate_replacements(
                 section_type=stype, count=ask, marks=marks,
                 board=board, grade=grade, subject=subject,
@@ -789,8 +728,6 @@ QUESTIONS:
                 r["section_type"] = stype
             cleaned_flat.extend(replacements)
             existing_qs.extend(r.get("question", "") for r in replacements)
-            if not replacements:
-                break  # API keeps failing — stop early
 
     # ── 6. Rebuild sections ──────────────────────────────────────────────────
     try:
@@ -883,13 +820,12 @@ def enforce_question_counts(
                 sec = {"section_name": name, "type": stype, "instructions": instr, "questions": []}
                 sec_map[stype] = sec
 
-            for attempt in range(5):
+            for attempt in range(2):
                 shortage = target - len(sec["questions"])
                 if shortage <= 0:
                     break
 
                 existing = [q.get("question", "") for q in sec["questions"]]
-                # Ask for full shortage on first attempt; half on subsequent to avoid token blow-out
                 ask = shortage if attempt == 0 else max(1, shortage // 2)
                 print(f"[ENFORCE] {stype} attempt {attempt+1}: need {shortage} more, asking {ask}", flush=True)
 
