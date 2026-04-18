@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from typing import List, Optional, Dict
 from core.config import settings
 from services.rag_service import retrieve_chunks, retrieve_example_questions, get_client
@@ -9,20 +10,46 @@ MCQ_BATCH_SIZE = 25  # MCQ questions per LLM call
 MCQ_MODEL = "llama-3.1-8b-instant"  # 500k TPD — used for all MCQ batches to save 70b quota
 FALLBACK_MODEL = "llama-3.1-8b-instant"  # automatic fallback when primary model hits TPD limit
 
+def _t(label: str, start: float):
+    print(f"[TIMER] {label}: {time.time() - start:.1f}s", flush=True)
 
-def _groq_create(client, model: str, messages: list, max_tokens: int, timeout: int = 90):
-    """Call Groq with automatic fallback to FALLBACK_MODEL on rate limit (429)."""
+
+# ── JSON parser that survives LaTeX backslashes ───────────────────────────────
+# LLMs put \frac, \int, \sqrt etc. in answers. These are invalid JSON escapes
+# (\i, \s are not in the JSON spec). We fix them before parsing.
+_INVALID_ESCAPE = re.compile(r'\\(?!["\\/bfnrtu])')
+
+def _safe_loads(text: str):
+    """json.loads with automatic LaTeX-backslash repair."""
     try:
-        return client.chat.completions.create(
+        return json.loads(text)
+    except json.JSONDecodeError:
+        fixed = _INVALID_ESCAPE.sub(r'\\\\', text)
+        return json.loads(fixed)
+
+
+def _groq_create(client, model: str, messages: list, max_tokens: int, timeout: int = 45):
+    """Call Groq with automatic fallback to FALLBACK_MODEL on rate limit (429)."""
+    t0 = time.time()
+    try:
+        result = client.chat.completions.create(
             model=model, max_tokens=max_tokens, messages=messages, timeout=timeout,
         )
+        print(f"[GROQ] {model} OK — {max_tokens} tok, {time.time()-t0:.1f}s", flush=True)
+        return result
     except GroqRateLimitError:
         if model == FALLBACK_MODEL:
             raise
-        print(f"[GROQ] Rate limit on {model} — retrying with {FALLBACK_MODEL}", flush=True)
-        return client.chat.completions.create(
+        print(f"[GROQ] Rate limit on {model} ({time.time()-t0:.1f}s) — fallback to {FALLBACK_MODEL}", flush=True)
+        t1 = time.time()
+        result = client.chat.completions.create(
             model=FALLBACK_MODEL, max_tokens=max_tokens, messages=messages, timeout=timeout,
         )
+        print(f"[GROQ] {FALLBACK_MODEL} fallback OK — {time.time()-t1:.1f}s", flush=True)
+        return result
+    except Exception as e:
+        print(f"[GROQ] {model} FAILED after {time.time()-t0:.1f}s — {type(e).__name__}: {e}", flush=True)
+        raise
 
 DIFFICULTY_INSTRUCTIONS = {
     "easy": (
@@ -313,6 +340,8 @@ def _generate_batched(
     model: str, per_q_marks: Dict[str, int],
 ) -> dict:
     """Generate large papers: batched MCQ calls + one dedicated call per non-MCQ type."""
+    t_start = time.time()
+    print(f"[GEN] START board={board} grade={grade} subject={subject} counts={counts}", flush=True)
     client = get_client()
     sections = []
 
@@ -332,6 +361,7 @@ def _generate_batched(
                 batch_size, marks_per_mcq, context_chunks, include_answer_key,
                 start_num=current_num, used_questions=all_mcqs,
             )
+            t_mcq = time.time()
             try:
                 message = _groq_create(
                     client, MCQ_MODEL,
@@ -341,12 +371,15 @@ def _generate_batched(
                 raw = message.choices[0].message.content.strip()
                 arr_match = re.search(r'\[[\s\S]*\]', raw)
                 if arr_match:
-                    batch_qs = json.loads(arr_match.group())
+                    batch_qs = _safe_loads(arr_match.group())
                     for q in batch_qs:
                         q["marks"] = marks_per_mcq
                     all_mcqs.extend(batch_qs)
-            except Exception:
-                pass
+                    print(f"[GEN] MCQ batch got {len(batch_qs)} Qs in {time.time()-t_mcq:.1f}s", flush=True)
+                else:
+                    print(f"[GEN] MCQ batch: no JSON array in response ({time.time()-t_mcq:.1f}s)", flush=True)
+            except Exception as e:
+                print(f"[GEN] MCQ batch FAILED {time.time()-t_mcq:.1f}s: {e}", flush=True)
 
             remaining   -= batch_size
             current_num += batch_size
@@ -355,6 +388,7 @@ def _generate_batched(
             "section_name": "Section A", "type": "MCQ",
             "instructions": "Choose the correct answer.", "questions": all_mcqs,
         })
+        print(f"[GEN] MCQ done: {len(all_mcqs)} questions @ {time.time()-t_start:.1f}s", flush=True)
 
     # ── Non-MCQ: one call per section type, 45s timeout, no automatic retry ──────
     # Missing questions are filled by enforce_question_counts after verify.
@@ -378,7 +412,7 @@ def _generate_batched(
             j = re.search(r'\{[\s\S]*\}', raw)
             if not j:
                 return None
-            data = json.loads(j.group())
+            data = _safe_loads(j.group())
             node = data.get("paper", data)
             for sec in node.get("sections", []):
                 sec["type"] = TYPE_MAP.get(sec.get("type", "").lower(), sec.get("type", ""))
@@ -390,10 +424,14 @@ def _generate_batched(
 
     non_mcq_types = [qt for qt in question_types if qt != "MCQ"]
     for qt in non_mcq_types:
+        t_sec = time.time()
         sec = _call_single_section(qt)
+        got = len(sec.get("questions", [])) if sec else 0
+        print(f"[GEN] {qt}: {got}/{counts.get(qt,0)} questions in {time.time()-t_sec:.1f}s @ total {time.time()-t_start:.1f}s", flush=True)
         if sec:
             sections.append(sec)
 
+    print(f"[GEN] generation complete @ {time.time()-t_start:.1f}s", flush=True)
     # Enforce section order: MCQ → short_answer → long_answer
     SECTION_ORDER = ["MCQ", "short_answer", "long_answer"]
     sections_by_type = {s["type"]: s for s in sections}
@@ -488,7 +526,7 @@ def generate_paper(
         raise ValueError("LLM did not return valid JSON")
 
     try:
-        data = json.loads(json_match.group())
+        data = _safe_loads(json_match.group())
     except json.JSONDecodeError:
         raise ValueError(
             "The generated paper was too large and the response was cut off. "
@@ -601,7 +639,7 @@ No markdown, no explanation."""
             raw = result.choices[0].message.content.strip()
             arr_match = re.search(r'\[[\s\S]*\]', raw)
             if arr_match:
-                parsed = json.loads(arr_match.group())
+                parsed = _safe_loads(arr_match.group())
                 if parsed:
                     return parsed
         except Exception as e:
@@ -650,6 +688,8 @@ def verify_and_clean_paper(
     """
     VERIFY_MODEL = "llama-3.1-8b-instant"
 
+    t_v = time.time()
+    print(f"[VERIFY] START expected={expected_counts}", flush=True)
     client = get_client()
     sections = paper.get("sections", [])
     if not sections:
@@ -687,7 +727,7 @@ def verify_and_clean_paper(
 
     # ── 2. Python-validate MCQs (fast, no token limits) ─────────────────────
     validated_mcqs = _python_validate_mcqs(mcq_flat)
-    print(f"[VERIFY] MCQ python-check: {len(mcq_flat)} in → {len(validated_mcqs)} valid", flush=True)
+    print(f"[VERIFY] MCQ python-check: {len(mcq_flat)} in → {len(validated_mcqs)} valid @ {time.time()-t_v:.1f}s", flush=True)
 
     # ── 3. Non-MCQ: keep all originals — no LLM removal ─────────────────────────
     # LLM answer-checking is skipped to stay within the 60-120s budget.
@@ -768,6 +808,8 @@ def verify_and_clean_paper(
         paper["total_marks"] = sum(
             q.get("marks", 1) for s in paper["sections"] for q in s.get("questions", [])
         )
+        final = {s["type"]: len(s.get("questions",[])) for s in paper["sections"]}
+        print(f"[VERIFY] DONE {final} @ {time.time()-t_v:.1f}s", flush=True)
     except Exception as e:
         print(f"[VERIFY] Section rebuild failed: {e} — returning original paper", flush=True)
 
@@ -801,6 +843,8 @@ def enforce_question_counts(
         "long_answer":  ("Section C", "Answer the following questions in detail."),
     }
 
+    t_e = time.time()
+    print(f"[ENFORCE] START expected={expected_counts}", flush=True)
     changed = False
     for stype, target in expected_counts.items():
         sec     = sec_map.get(stype)
@@ -856,6 +900,9 @@ def enforce_question_counts(
                 print(f"[ENFORCE] WARNING: {stype} final={actual}/{target} after all attempts", flush=True)
             else:
                 print(f"[ENFORCE] OK: {stype} = {actual}/{target}", flush=True)
+
+    final = {k: len(v.get("questions",[])) for k,v in sec_map.items() if k in expected_counts}
+    print(f"[ENFORCE] DONE {final} @ {time.time()-t_e:.1f}s", flush=True)
 
     if changed:
         SECTION_ORDER = ["MCQ", "short_answer", "long_answer"]
