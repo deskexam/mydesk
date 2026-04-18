@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from core.database import get_async_db
 from core.security import get_current_user
 from models.paper import PaperCreate, PaperUpdate, PaperOut, Question
-from services.paper_generator import generate_paper, flatten_questions, verify_and_clean_paper
+from services.paper_generator import generate_paper, flatten_questions, verify_and_clean_paper, enforce_question_counts
 from services.pdf_export import generate_pdf
 from services.rag_service import get_client
 from core.config import settings
@@ -64,14 +64,32 @@ async def generate_paper_endpoint(
         if paper_request.num_short: expected["short_answer"]  = paper_request.num_short
         if paper_request.num_long:  expected["long_answer"]   = paper_request.num_long
 
+        context_chunks = paper_data.get("_context_chunks", [])
+
         paper_data = verify_and_clean_paper(
             paper_data,
             active_model,
-            context_chunks=paper_data.get("_context_chunks", []),
+            context_chunks=context_chunks,
             expected_counts=expected or None,
             per_q_marks=marks_per,
             include_answer_key=paper_request.include_answer_key,
         )
+
+        # Hard final gate: ensure exact question counts before saving/returning
+        if expected:
+            paper_data = enforce_question_counts(
+                paper_data,
+                expected_counts=expected,
+                per_q_marks=marks_per,
+                model=active_model,
+                board=paper_request.board,
+                grade=str(paper_request.grade),
+                subject=paper_request.subject,
+                topics=paper_request.topics or [],
+                difficulty=paper_request.difficulty,
+                include_answer_key=paper_request.include_answer_key,
+                context_chunks=context_chunks,
+            )
 
         # Strip internal-only fields before saving
         paper_data.pop("_context_chunks", None)
