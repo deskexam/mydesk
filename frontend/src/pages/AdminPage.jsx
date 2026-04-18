@@ -12,39 +12,48 @@ const GRADES = ['8', '9', '10', '11', '12'];
 const SUBJECTS_BY_GRADE = {
   '8': {
     'CBSE':        ['Mathematics', 'Science', 'English', 'History', 'Geography', 'Civics'],
-    'ICSE':        ['Mathematics', 'Physics', 'Chemistry', 'English'],
+    'ICSE':        ['Mathematics', 'Science', 'Physics', 'Chemistry', 'English'],
     'Maharashtra': ['Mathematics', 'Science & Technology', 'English', 'History & Political Science', 'Geography'],
   },
   '9': {
     'CBSE':        ['Mathematics', 'Science', 'English', 'History', 'Geography', 'Economics'],
     'ICSE':        ['Mathematics', 'Physics', 'Chemistry', 'English'],
-    'Maharashtra': ['Mathematics', 'Science & Technology', 'English', 'History & Political Science', 'Geography'],
+    'Maharashtra': ['Mathematics Part I (Algebra)', 'Mathematics Part II (Geometry)', 'Science Part I (Physics/Chemistry)', 'Science Part II (Biology)', 'English', 'History & Political Science', 'Geography'],
   },
   '10': {
     'CBSE':        ['Mathematics', 'Science', 'English', 'History', 'Geography'],
     'ICSE':        ['Mathematics', 'Physics', 'Chemistry', 'English'],
-    'Maharashtra': ['Mathematics', 'Science & Technology', 'English', 'History & Political Science', 'Geography'],
+    'Maharashtra': ['Mathematics Part I (Algebra)', 'Mathematics Part II (Geometry)', 'Science Part I (Physics/Chemistry)', 'Science Part II (Biology)', 'English', 'History & Political Science', 'Geography'],
   },
   '11': {
     'CBSE':        ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
     'ICSE':        ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
-    'Maharashtra': ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    'Maharashtra': ['Physics', 'Chemistry', 'Mathematics Part I', 'Mathematics Part II', 'Biology'],
   },
   '12': {
     'CBSE':        ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
     'ICSE':        ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
-    'Maharashtra': ['Physics', 'Chemistry', 'Mathematics', 'Biology'],
+    'Maharashtra': ['Physics', 'Chemistry', 'Mathematics Part I', 'Mathematics Part II', 'Biology'],
   },
 };
 
 const TOPICS_BY_GRADE_SUBJECT = {
   '8': {
     'Mathematics': [
+      // CBSE
       'Rational Numbers', 'Linear Equations in One Variable', 'Understanding Quadrilaterals',
-      'Data Handling', 'Squares and Square Roots', 'Cubes and Cube Roots',
-      'Comparing Quantities', 'Algebraic Expressions and Identities',
+      'Practical Geometry', 'Data Handling', 'Squares and Square Roots', 'Cubes and Cube Roots',
+      'Comparing Quantities', 'Algebraic Expressions and Identities', 'Visualising Solid Shapes',
       'Mensuration', 'Exponents and Powers', 'Direct and Inverse Proportions',
-      'Factorisation', 'Introduction to Graphs',
+      'Factorisation', 'Introduction to Graphs', 'Playing with Numbers',
+      // ICSE additions
+      'Sets', 'Percentage', 'Simple and Compound Interest', 'Algebraic Expressions',
+      'Constructions', 'Area and Perimeter', 'Surface Area and Volume',
+      // Maharashtra additions
+      'Rational and Irrational Numbers', 'Powers and Exponents', 'Expansion Formulae',
+      'Factorisation of Algebraic Expressions', 'Variation', 'Quadrilateral: Constructions and Types',
+      'Discount and Commission', 'Division of Polynomials', 'Statistics',
+      'Equations in One Variable', 'Congruence of Triangles', 'Compound Interest', 'Area',
     ],
     'Physics': [
       'Matter', 'Physical Quantities and Measurement', 'Force and Pressure',
@@ -57,23 +66,36 @@ const TOPICS_BY_GRADE_SUBJECT = {
       'Hydrogen', 'Water', 'Carbon and its Compounds',
     ],
     'Science': [
-      'Crop Production and Management', 'Microorganisms', 'Synthetic Fibres and Plastics',
-      'Materials: Metals and Non-Metals', 'Coal and Petroleum', 'Combustion and Flame',
-      'Conservation of Plants and Animals', 'Cell', 'Reproduction in Animals',
+      // CBSE
+      'Crop Production and Management', 'Microorganisms: Friend and Foe',
+      'Synthetic Fibres and Plastics', 'Materials: Metals and Non-Metals',
+      'Coal and Petroleum', 'Combustion and Flame', 'Conservation of Plants and Animals',
+      'Cell — Structure and Functions', 'Reproduction in Animals',
       'Reaching the Age of Adolescence', 'Force and Pressure', 'Friction',
-      'Sound', 'Chemical Effects of Electric Current', 'Some Natural Phenomena', 'Light',
+      'Sound', 'Chemical Effects of Electric Current', 'Some Natural Phenomena',
+      'Light', 'Stars and the Solar System', 'Pollution of Air and Water',
+      // ICSE additions
+      'Matter', 'Physical and Chemical Changes', 'Elements, Compounds and Mixtures',
+      'Atomic Structure', 'Language of Chemistry', 'Chemical Reactions',
+      'Metals and Non-metals', 'Carbon and its Compounds', 'Cell',
+      'Tissues', 'Human Organ Systems', 'Reproduction', 'Electricity',
+      'Magnetism', 'Natural Resources', 'Pollution', 'Ecosystem and Food Chain',
     ],
     'Science & Technology': [
-      'Living World and Classification', 'Health and Disease', 'Force and Pressure',
-      'Current Electricity', 'Inside the Atom', 'Metals and Nonmetals',
-      'Pollution', 'Cell and Cell Organelles', 'Ecosystem',
+      // Maharashtra
+      'Living World and Classification of Microbes', 'Health and Diseases', 'Force and Pressure',
+      'Effects of Electric Current', 'Inside the Atom', 'Composition of Matter',
+      'Metals and Nonmetals', 'Pollution', 'Disaster Management',
+      'Cell and Cell Organelles', 'Human Body and Organ System',
+      'Introduction to Acid and Base', 'Chemical Change and Chemical Bond',
+      'Measurement and Effects of Heat', 'Sound', 'Light',
     ],
     'English': ['Prose', 'Poetry', 'Grammar', 'Writing Skills'],
     'History': [
       'How, When and Where', 'From Trade to Territory', 'Ruling the Countryside',
       'Tribals, Dikus and the Vision of a Golden Age', 'When People Rebel',
-      'Civilising the "Native"', 'Women, Caste and Reform', 'The Making of the National Movement',
-      'India After Independence',
+      'Civilising the "Native"', 'Women, Caste and Reform',
+      'The Making of the National Movement', 'India After Independence',
     ],
     'Geography': [
       'Resources', 'Land, Soil, Water, Natural Vegetation and Wildlife',
@@ -83,40 +105,61 @@ const TOPICS_BY_GRADE_SUBJECT = {
       'The Modern Age in Europe', 'The British Empire in India', 'Struggle for Independence',
       'The Indian Constitution', 'Parliament', 'The Judiciary',
     ],
-    'History & Political Science': [
-      'History of Modern India', 'Indian Constitution', 'Social Issues',
-    ],
+    'History & Political Science': ['History of Modern India', 'Indian Constitution', 'Social Issues'],
     'Civics': ['The Indian Constitution', 'Parliament', 'The Judiciary', 'Social Justice'],
     'Economics': ['Resources', 'Development'],
   },
   '9': {
     'Mathematics': [
+      // CBSE
       'Number Systems', 'Polynomials', 'Coordinate Geometry',
-      'Linear Equations in Two Variables', 'Introduction to Euclid\'s Geometry',
+      'Linear Equations in Two Variables', "Introduction to Euclid's Geometry",
       'Lines and Angles', 'Triangles', 'Quadrilaterals', 'Circles',
-      'Heron\'s Formula', 'Surface Areas and Volumes', 'Statistics',
+      "Heron's Formula", 'Surface Areas and Volumes', 'Statistics',
+      // ICSE additions
+      'Rational and Irrational Numbers', 'Compound Interest', 'Expansions and Factorisation',
+      'Simultaneous Equations', 'Indices', 'Logarithms', 'Area Theorems', 'Mensuration',
+      'Trigonometry',
     ],
     'Physics': [
-      'Measurements and Experimentation', 'Motion in One Dimension',
-      'Laws of Motion', 'Fluids', 'Heat and Energy',
+      'Measurements and Experimentation', 'Motion in One Dimension', 'Laws of Motion',
+      'Pressure in Fluids and Atmospheric Pressure', 'Heat and Energy',
       'Light', 'Sound', 'Electricity and Magnetism',
     ],
     'Chemistry': [
-      'Matter and its Composition', 'Elements, Compounds and Mixtures',
-      'Atomic Structure and Chemical Bonding', 'Language of Chemistry',
-      'Chemical Changes', 'Water', 'Carbon and its Compounds',
-      'Acids, Bases and Salts', 'Analytical Chemistry',
+      'Matter and its Composition', 'Physical and Chemical Changes',
+      'Elements, Compounds and Mixtures', 'Atomic Structure', 'The Periodic Table',
+      'Chemical Bonding', 'Hydrogen', 'Water', 'Carbon and its Compounds',
+      'Acids, Bases and Salts', 'Analytical Chemistry', 'Atmospheric Pollution',
     ],
     'Science': [
-      'Matter in Our Surroundings', 'Is Matter Around Us Pure',
+      // CBSE
+      'Matter in Our Surroundings', 'Is Matter Around Us Pure?',
       'Atoms and Molecules', 'Structure of the Atom',
       'The Fundamental Unit of Life', 'Tissues', 'Motion', 'Force and Laws of Motion',
-      'Gravitation', 'Work and Energy', 'Sound', 'Improvement in Food Resources',
+      'Gravitation', 'Work and Energy', 'Sound',
+      'Why Do We Fall Ill', 'Natural Resources', 'Improvement in Food Resources',
     ],
     'Science & Technology': [
       'Laws of Motion', 'Gravitation', 'Current Electricity', 'Magnetic Effect',
       'Atoms and Molecules', 'Carbon Compounds', 'Classification of Plants and Animals',
       'Economic Importance of Biology',
+    ],
+    'Mathematics Part I (Algebra)': [
+      'Sets', 'Real Numbers', 'Polynomials', 'Ratio and Proportion',
+      'Linear Equations in Two Variables', 'Financial Planning', 'Statistics',
+    ],
+    'Mathematics Part II (Geometry)': [
+      'Basic Concepts in Geometry', 'Parallel Lines', 'Triangles', 'Quadrilaterals',
+      'Circle', 'Coordinate Geometry', 'Trigonometry', 'Mensuration',
+    ],
+    'Science Part I (Physics/Chemistry)': [
+      'Laws of Motion', 'Work and Energy', 'Current Electricity',
+      'Measurement of Matter', 'Acids, Bases and Salts', 'Classification of Plants',
+    ],
+    'Science Part II (Biology)': [
+      'Study of Cell', 'Organisation of Living Things',
+      'Life Processes in Living Organisms', 'Environmental Management', 'Natural Resources',
     ],
     'English': ['Prose', 'Poetry', 'Drama', 'Grammar', 'Writing Skills'],
     'History': [
@@ -142,39 +185,64 @@ const TOPICS_BY_GRADE_SUBJECT = {
   },
   '10': {
     'Mathematics': [
+      // CBSE
       'Real Numbers', 'Polynomials', 'Pair of Linear Equations in Two Variables',
       'Quadratic Equations', 'Arithmetic Progressions', 'Triangles',
       'Coordinate Geometry', 'Introduction to Trigonometry',
-      'Applications of Trigonometry', 'Circles', 'Areas Related to Circles',
+      'Some Applications of Trigonometry', 'Circles', 'Areas Related to Circles',
       'Surface Areas and Volumes', 'Statistics', 'Probability',
+      // ICSE additions
+      'Commercial Mathematics', 'Algebra',
     ],
     'Physics': [
+      // ICSE
       'Force', 'Work, Energy and Power', 'Machines',
-      'Refraction of Light at Plane Surfaces', 'Refraction through a Lens',
-      'Spectrum', 'Sound', 'Electricity',
-      'Magnetic Effect of Electric Current', 'Calorimetry', 'Nuclear Physics',
+      'Refraction of Light', 'Spectrum', 'Sound', 'Electricity',
+      'Magnetism', 'Modern Physics',
+      // CBSE additions
+      'Light — Reflection and Refraction', 'Human Eye and the Colourful World',
+      'Magnetic Effects of Electric Current',
     ],
     'Chemistry': [
-      'Periodic Table and Periodicity', 'Chemical Bonding',
-      'Acids, Bases and Salts', 'Analytical Chemistry',
-      'Mole Concept and Stoichiometry', 'Electrolysis',
-      'Metallurgy', 'Study of Compounds – Ammonia', 'Study of Compounds – Nitric Acid',
+      // ICSE / CBSE combined
+      'Periodic Table and Periodicity', 'Chemical Bonding', 'Chemical Equations',
+      'Acids, Bases and Salts', 'Analytical Chemistry', 'Mole Concept and Stoichiometry',
+      'Electrolysis', 'Metallurgy', 'Organic Chemistry', 'Atmosphere',
+      'Study of Compounds – Ammonia', 'Study of Compounds – Nitric Acid',
       'Study of Compounds – Sulphuric Acid', 'Study of Compounds – Hydrogen Chloride',
-      'Organic Chemistry',
     ],
     'Science': [
+      // CBSE
       'Chemical Reactions and Equations', 'Acids, Bases and Salts',
       'Metals and Non-metals', 'Carbon and its Compounds',
-      'Life Processes', 'Control and Coordination', 'Reproduction',
-      'Heredity and Evolution', 'Light – Reflection and Refraction',
-      'Human Eye and Colourful World', 'Electricity',
+      'Life Processes', 'Control and Coordination', 'How do Organisms Reproduce?',
+      'Heredity', 'Light — Reflection and Refraction',
+      'The Human Eye and the Colourful World', 'Electricity',
       'Magnetic Effects of Electric Current', 'Our Environment',
+      'Management of Natural Resources',
     ],
     'Science & Technology': [
       'Gravitation', 'Periodic Classification of Elements',
       'Chemical Reactions and Equations', 'Effects of Electric Current',
       'Heat', 'Sound', 'Refraction of Light', 'Human Eye',
       'Carbon Compounds', 'Space Missions', 'Heredity and Evolution', 'Life Processes',
+    ],
+    'Mathematics Part I (Algebra)': [
+      'Linear Equations in Two Variables', 'Quadratic Equations', 'Arithmetic Progression',
+      'Financial Planning', 'Probability', 'Statistics',
+    ],
+    'Mathematics Part II (Geometry)': [
+      'Similarity', 'Pythagoras Theorem', 'Circle', 'Geometric Constructions',
+      'Coordinate Geometry', 'Trigonometry', 'Mensuration',
+    ],
+    'Science Part I (Physics/Chemistry)': [
+      'Gravitation', 'Periodic Classification of Elements',
+      'Chemical Reactions and Equations', 'Effects of Electric Current',
+      'Heat', 'Refraction of Light',
+    ],
+    'Science Part II (Biology)': [
+      'Life Processes', 'Control and Coordination', 'Reproduction',
+      'Heredity and Evolution', 'Environment',
     ],
     'English': [
       'First Flight – Prose', 'First Flight – Poetry',
@@ -191,90 +259,132 @@ const TOPICS_BY_GRADE_SUBJECT = {
       'The United Nations', 'Modern Age in Europe', 'Parliamentary Democracy',
     ],
     'History & Political Science': [
-      'Renaissance', 'Religious Reformation in Europe',
-      'Industrial Revolution', 'World Wars',
-      'Indian Constitution', 'Social and Political Life',
+      'Renaissance', 'Religious Reformation in Europe', 'Industrial Revolution',
+      'World Wars', 'Indian Constitution', 'Social and Political Life',
     ],
     'Geography': [
-      'Resources and Development', 'Forest and Wildlife Resources',
-      'Water Resources', 'Agriculture',
-      'Minerals and Energy Resources', 'Manufacturing Industries',
+      'Resources and Development', 'Forest and Wildlife Resources', 'Water Resources',
+      'Agriculture', 'Minerals and Energy Resources', 'Manufacturing Industries',
       'Lifelines of National Economy',
     ],
   },
   '11': {
     'Physics': [
-      'Physical World and Measurement', 'Kinematics',
-      'Laws of Motion', 'Work, Energy and Power',
+      // CBSE (split properly)
+      'Physical World', 'Units and Measurement', 'Motion in a Straight Line',
+      'Motion in a Plane', 'Laws of Motion', 'Work, Energy and Power',
       'System of Particles and Rotational Motion', 'Gravitation',
       'Mechanical Properties of Solids', 'Mechanical Properties of Fluids',
-      'Thermal Properties of Matter', 'Thermodynamics',
-      'Kinetic Theory', 'Oscillations', 'Waves',
+      'Thermal Properties of Matter', 'Thermodynamics', 'Kinetic Theory',
+      'Oscillations', 'Waves',
+      // Maharashtra additions
+      'Mathematical Methods', 'Sound', 'Optics', 'Electrostatics',
+      'Electric Current through Conductors', 'Magnetism', 'Electromagnetic Waves',
+      'Semiconductors',
     ],
     'Chemistry': [
+      // CBSE / ICSE
       'Some Basic Concepts of Chemistry', 'Structure of Atom',
       'Classification of Elements and Periodicity in Properties',
-      'Chemical Bonding and Molecular Structure',
-      'States of Matter', 'Thermodynamics', 'Equilibrium',
-      'Redox Reactions', 'Hydrogen', 's-Block Elements',
-      'Some p-Block Elements', 'Organic Chemistry – Basic Principles',
-      'Hydrocarbons', 'Environmental Chemistry',
+      'Chemical Bonding and Molecular Structure', 'States of Matter',
+      'Thermodynamics', 'Equilibrium', 'Redox Reactions', 'Hydrogen',
+      's-Block Elements', 'Some p-Block Elements',
+      'Organic Chemistry – Basic Principles', 'Hydrocarbons', 'Environmental Chemistry',
+      // Maharashtra additions
+      'Introduction to Analytical Chemistry', 'Basic Analytical Techniques',
+      'Modern Periodic Table', 'Elements of Groups 1 and 2',
+      'Elements of Groups 13, 14 and 15', 'Adsorption and Colloids',
+      'Nuclear Chemistry and Radioactivity', 'Chemistry in Everyday Life',
     ],
     'Mathematics': [
+      // CBSE / ICSE
       'Sets', 'Relations and Functions', 'Trigonometric Functions',
-      'Principle of Mathematical Induction',
-      'Complex Numbers and Quadratic Equations', 'Linear Inequalities',
-      'Permutations and Combinations', 'Binomial Theorem',
+      'Principle of Mathematical Induction', 'Complex Numbers and Quadratic Equations',
+      'Linear Inequalities', 'Permutations and Combinations', 'Binomial Theorem',
       'Sequences and Series', 'Straight Lines', 'Conic Sections',
-      'Introduction to Three Dimensional Geometry',
-      'Limits and Derivatives', 'Statistics', 'Probability',
+      'Introduction to Three Dimensional Geometry', 'Limits and Derivatives',
+      'Statistics', 'Probability', 'Mathematical Reasoning',
+    ],
+    'Mathematics Part I': [
+      // Maharashtra
+      'Angle and its Measurement', 'Trigonometry-I', 'Trigonometry-II',
+      'Determinants and Matrices', 'Straight Line', 'Circle', 'Conic Sections',
+      'Measures of Dispersion', 'Probability',
+    ],
+    'Mathematics Part II': [
+      // Maharashtra
+      'Complex Numbers', 'Sequences and Series', 'Permutations and Combinations',
+      'Mathematical Induction and Binomial Theorem', 'Sets and Relations',
+      'Functions', 'Limits', 'Differentiation', 'Integration', 'Statistics',
     ],
     'Biology': [
       'The Living World', 'Biological Classification', 'Plant Kingdom', 'Animal Kingdom',
       'Morphology of Flowering Plants', 'Anatomy of Flowering Plants',
       'Structural Organisation in Animals', 'Cell: The Unit of Life',
-      'Biomolecules', 'Cell Cycle and Cell Division',
-      'Transport in Plants', 'Mineral Nutrition',
-      'Photosynthesis in Higher Plants', 'Respiration in Plants',
+      'Biomolecules', 'Cell Cycle and Cell Division', 'Transport in Plants',
+      'Mineral Nutrition', 'Photosynthesis in Higher Plants', 'Respiration in Plants',
       'Plant Growth and Development', 'Digestion and Absorption',
       'Breathing and Exchange of Gases', 'Body Fluids and Circulation',
-      'Excretory Products and their Elimination',
-      'Locomotion and Movement', 'Neural Control and Coordination',
-      'Chemical Coordination and Integration',
+      'Excretory Products and their Elimination', 'Locomotion and Movement',
+      'Neural Control and Coordination', 'Chemical Coordination and Integration',
     ],
   },
   '12': {
     'Physics': [
+      // CBSE / ICSE
       'Electric Charges and Fields', 'Electrostatic Potential and Capacitance',
       'Current Electricity', 'Moving Charges and Magnetism', 'Magnetism and Matter',
       'Electromagnetic Induction', 'Alternating Current', 'Electromagnetic Waves',
       'Ray Optics and Optical Instruments', 'Wave Optics',
       'Dual Nature of Radiation and Matter', 'Atoms', 'Nuclei',
       'Semiconductor Electronics',
+      // Maharashtra additions
+      'Rotational Dynamics', 'Mechanical Properties of Fluids',
+      'Kinetic Theory of Gases and Radiation', 'Thermodynamics', 'Oscillations',
+      'Superposition of Waves', 'Magnetic Fields due to Electric Current',
+      'Magnetic Materials', 'AC Circuits', 'Structure of Atoms and Nuclei',
+      'Semiconductor Devices',
     ],
     'Chemistry': [
+      // CBSE / ICSE
       'Solid State', 'Solutions', 'Electrochemistry', 'Chemical Kinetics',
       'Surface Chemistry', 'General Principles and Processes of Isolation of Elements',
       'p-Block Elements', 'd and f Block Elements', 'Coordination Compounds',
       'Haloalkanes and Haloarenes', 'Alcohols, Phenols and Ethers',
       'Aldehydes, Ketones and Carboxylic Acids', 'Amines', 'Biomolecules',
       'Polymers', 'Chemistry in Everyday Life',
+      // Maharashtra additions
+      'Solutions and Colligative Properties', 'Ionic Equilibria',
+      'Chemical Thermodynamics', 'Elements of Groups 16, 17 and 18',
+      'Transition and Inner Transition Elements', 'Halogen Derivatives of Alkanes',
+      'Introduction to Polymer Chemistry', 'Green Chemistry and Nanochemistry',
     ],
     'Mathematics': [
+      // CBSE / ICSE
       'Relations and Functions', 'Inverse Trigonometric Functions',
       'Matrices', 'Determinants', 'Continuity and Differentiability',
       'Application of Derivatives', 'Integrals', 'Application of Integrals',
       'Differential Equations', 'Vector Algebra',
       'Three Dimensional Geometry', 'Linear Programming', 'Probability',
     ],
+    'Mathematics Part I': [
+      // Maharashtra
+      'Mathematical Logic', 'Matrices', 'Trigonometric Functions',
+      'Pair of Straight Lines', 'Vectors', 'Line and Plane', 'Linear Programming',
+    ],
+    'Mathematics Part II': [
+      // Maharashtra
+      'Differentiation', 'Applications of Derivatives', 'Indefinite Integration',
+      'Definite Integration', 'Applications of Definite Integration',
+      'Differential Equations', 'Probability Distribution', 'Binomial Distribution',
+    ],
     'Biology': [
       'Reproduction in Organisms', 'Sexual Reproduction in Flowering Plants',
       'Human Reproduction', 'Reproductive Health',
       'Principles of Inheritance and Variation', 'Molecular Basis of Inheritance',
       'Evolution', 'Human Health and Disease',
-      'Strategies for Enhancement in Food Production',
-      'Microbes in Human Welfare', 'Biotechnology – Principles and Processes',
-      'Biotechnology and its Applications',
+      'Strategies for Enhancement in Food Production', 'Microbes in Human Welfare',
+      'Biotechnology – Principles and Processes', 'Biotechnology and its Applications',
       'Organisms and Populations', 'Ecosystem',
       'Biodiversity and Conservation', 'Environmental Issues',
     ],
